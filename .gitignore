@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+
+# Tools and SDK binaries
+tools/
+.temp/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS Files
+Thumbs.db
+.DS_Store

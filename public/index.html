@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="crimson">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sentinel — Women's Safety & Emergency Response Platform</title>
+  <meta name="description" content="A modern women's safety ecosystem featuring live trip sharing, discreet 3-second hold SOS, community incident heatmaps, fake call assistance, and trusted guardian circles.">
+  <meta name="theme-color" content="#E53935">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+
+  <!-- MASTER TOP TOOLBAR (HACKATHON DEMO & THEME SWITCHER) -->
+  <header class="master-header">
+    <div class="header-left">
+      <a href="#" class="brand-badge" id="brandReset">
+        <svg viewBox="0 0 40 40" fill="none">
+          <circle cx="20" cy="20" r="18" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="2"/>
+          <path d="M20 9L29 13V19C29 25 25 29.5 20 31C15 29.5 11 25 11 19V13L20 9Z" fill="url(#brandGrad)" stroke="#FFFFFF" stroke-width="1.8" stroke-linejoin="round"/>
+          <path d="M16 19.5L19 22.5L25 16.5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="brandGrad" x1="11" y1="9" x2="29" y2="31" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#E53935"/>
+              <stop offset="1" stop-color="#F59E0B"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div>
+          <h1>Sentinel</h1>
+        </div>
+        <span class="brand-tag">Hackathon Build</span>
+      </a>
+    </div>
+
+    <!-- Theme & View Controls -->
+    <div class="controls-bar">
+      <!-- 5 Curated Color Themes Dropdown -->
+      <div class="theme-dropdown-wrap" id="themeDropdownWrap">
+        <button type="button" class="theme-dropdown-btn" id="themeDropdownBtn" title="Change Color Theme" aria-haspopup="true">
+          <span class="theme-active-indicator">
+            <span class="theme-dot" id="themeActiveDot" style="background: #E53935;"></span>
+            <span id="themeActiveLabel">Crimson</span>
+          </span>
+          <svg class="dropdown-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        <div class="theme-dropdown-menu" id="themeDropdownMenu">
+          <button type="button" class="theme-menu-item active" data-theme="crimson">
+            <span class="theme-dot" style="background: #E53935;"></span>
+            <span>Crimson (Signature)</span>
+          </button>
+          <button type="button" class="theme-menu-item" data-theme="sunset">
+            <span class="theme-dot" style="background: #F5A64E;"></span>
+            <span>Sunset (Amber & Rose)</span>
+          </button>
+          <button type="button" class="theme-menu-item" data-theme="emerald">
+            <span class="theme-dot" style="background: #10E7B2;"></span>
+            <span>Emerald (Mint Teal)</span>
+          </button>
+          <button type="button" class="theme-menu-item" data-theme="cyber">
+            <span class="theme-dot" style="background: #A855F7;"></span>
+            <span>Cyber (Neon Violet)</span>
+          </button>
+          <button type="button" class="theme-menu-item" data-theme="light">
+            <span class="theme-dot" style="background: #2563EB;"></span>
+            <span>Daylight (Clean Light)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- View Mode: Single Phone Simulator vs All 8 Screens Gallery -->
+      <button type="button" class="view-toggle-btn" id="viewToggleBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        All 8 Screens Flow
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WRAPPER -->
+  <main class="app-container">
+
+    <!-- VIEW MODE 1: INTERACTIVE PHONE SIMULATOR -->
+    <div class="phone-simulator-wrap" id="phoneSimulatorWrap">
+      <div class="phone-mockup">
+        <!-- Physical Bezel & Dynamic Notch -->
+        <div class="phone-notch">
+          <div class="notch-sensor"></div>
+          <div class="notch-camera"></div>
+        </div>
+
+        <!-- Phone Display Screen -->
+        <div class="phone-screen">
+          
+          <!-- IN-PHONE INCOMING CALL SCREEN -->
+          <div class="in-phone-call-screen" id="inPhoneCallScreen">
+            <div class="call-header-info">
+              <div class="call-avatar-circle">👤</div>
+              <div class="call-person-name">Dad</div>
+              <div class="call-person-phone">+91 98450 12345</div>
+              <div class="call-status-indicator" id="phoneCallStatus">Incoming Call...</div>
+            </div>
+
+            <!-- Ringing Actions -->
+            <div class="incoming-call-actions" id="phoneIncomingActions">
+              <button type="button" class="phone-action-btn-circle btn-phone-decline" id="btnPhoneDecline" title="Decline Call">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
+                <span>Decline</span>
+              </button>
+
+              <button type="button" class="phone-action-btn-circle btn-phone-accept" id="btnPhoneAccept" title="Accept Call">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>Accept</span>
+              </button>
+            </div>
+
+            <!-- Connected Call View -->
+            <div class="connected-call-view" id="phoneConnectedView">
+              <div class="call-timer-badge" id="phoneCallTimer">00:03</div>
+
+              <div class="voice-wave-container">
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+                <div class="voice-wave-bar"></div>
+              </div>
+
+              <div class="spoken-transcript-card">
+                <em>"Hey Priya, where are you right now? I'm waiting in the car near the gate, stay on the line until you reach."</em>
+              </div>
+
+              <div class="in-call-mock-grid">
+                <button type="button" class="in-call-tool-btn" onclick="showToast('Mute toggled')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                  Mute
+                </button>
+                <button type="button" class="in-call-tool-btn" onclick="showToast('Keypad opened')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                  Keypad
+                </button>
+                <button type="button" class="in-call-tool-btn" onclick="showToast('Speaker toggled')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                  Speaker
+                </button>
+              </div>
+
+              <button type="button" class="btn-end-call-large" id="btnPhoneEndCall" title="End Call">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Realistic Status Bar -->
+          <div class="phone-status-bar">
+            <span class="phone-clock">9:41</span>
+            <div class="status-right">
+              <span>Wi-Fi 82%</span>
+              <div class="battery-icon">
+                <div class="battery-level"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Viewport Container -->
+          <div class="phone-viewport">
+
+            <!-- ==============================================
+                 SCREEN 01 · WELCOME & TRUST FRAMING
+                 ============================================== -->
+            <section class="screen-view" id="s01">
+              <div class="s01-body">
+                <div>
+                  <div class="s01-shield-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                      <polyline points="9 12 11 14 15 10"/>
+                    </svg>
+                  </div>
+                  <h2 class="s01-title">Someone should always know where you are.</h2>
+                  <p class="s01-desc">Sentinel connects you to trusted people, real help, and a record of what happened — before, during, and after.</p>
+                </div>
+                
+                <div class="s01-actions">
+                  <button type="button" class="btn-primary-large" id="btnCreateAcc">Create your account</button>
+                  <button type="button" class="btn-ghost-large" id="btnAlreadyHave">I already have one</button>
+                  <p class="s01-footer-consent">By continuing you agree Sentinel may share your live location only with people you choose.</p>
+                </div>
+              </div>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 02 · HOME DASHBOARD
+                 ============================================== -->
+            <section class="screen-view active" id="s02">
+              <div class="home-header">
+                <div class="home-left-group">
+                  <!-- In-Phone 3-Dots Menu (BIG & Before 'Good evening') -->
+                  <div class="screens-dropdown-wrap in-phone-screens-wrap" id="inPhoneScreensWrap">
+                    <button type="button" class="more-menu-btn in-phone-dots-btn in-phone-dots-btn-lg" id="inPhoneMoreScreensBtn" title="Jump to Screen (1-8)" aria-label="Phone Screens Menu">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+                        <circle cx="12" cy="12" r="1.8"/>
+                        <circle cx="12" cy="5" r="1.8"/>
+                        <circle cx="12" cy="19" r="1.8"/>
+                      </svg>
+                    </button>
+
+                    <div class="screens-dropdown-menu in-phone-dropdown-menu" id="inPhoneScreensMenu">
+                      <div class="dropdown-section-header">Jump to Screen (1–8)</div>
+                      <button type="button" class="screen-menu-item" data-target="s01">
+                        <span class="screen-badge">01</span>
+                        <div>
+                          <div class="screen-item-name">Welcome & Trust</div>
+                          <div class="screen-item-sub">Onboarding & Consent</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item active" data-target="s02">
+                        <span class="screen-badge">02</span>
+                        <div>
+                          <div class="screen-item-name">Home Dashboard</div>
+                          <div class="screen-item-sub">Hold SOS & Quick Tiles</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item" data-target="s03">
+                        <span class="screen-badge">03</span>
+                        <div>
+                          <div class="screen-item-name">Live Trip Sharing</div>
+                          <div class="screen-item-sub">Google Maps Tracker</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item" data-target="s04">
+                        <span class="screen-badge">04</span>
+                        <div>
+                          <div class="screen-item-name">Trusted Circle</div>
+                          <div class="screen-item-sub">Guardians & Safe Word</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item" data-target="s05">
+                        <span class="screen-badge">05</span>
+                        <div>
+                          <div class="screen-item-name">SOS Countdown</div>
+                          <div class="screen-item-sub">Active Alert & Abort</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item" data-target="s06">
+                        <span class="screen-badge">06</span>
+                        <div>
+                          <div class="screen-item-name">Community Safety Map</div>
+                          <div class="screen-item-sub">Hazard Pins & Reports</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item" data-target="s07">
+                        <span class="screen-badge">07</span>
+                        <div>
+                          <div class="screen-item-name">Incident Log & Journal</div>
+                          <div class="screen-item-sub">Audio & Location Logger</div>
+                        </div>
+                      </button>
+                      <button type="button" class="screen-menu-item" data-target="s08">
+                        <span class="screen-badge">08</span>
+                        <div>
+                          <div class="screen-item-name">Profile & Settings</div>
+                          <div class="screen-item-sub">Emergency & Privacy</div>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="home-greet-col">
+                    <h2>Good evening</h2>
+                    <div class="home-user-name user-profile-name">Priya Nair</div>
+                  </div>
+                </div>
+
+                <div class="protected-badge">
+                  <span class="protected-dot"></span>
+                  <span>Protected</span>
+                </div>
+              </div>
+
+              <!-- MASSIVE 3-SECOND HOLD SOS BUTTON -->
+              <div class="sos-section">
+                <div class="sos-outer-pulse" id="sosButtonWrap">
+                  <div class="sos-pulse-wave"></div>
+                  <div class="sos-outer-ring"></div>
+                  <!-- Circular SVG Countdown Progress Ring -->
+                  <svg class="sos-progress-svg" viewBox="0 0 220 220">
+                    <circle class="sos-progress-circle" id="sosProgressCircle" cx="110" cy="110" r="105"></circle>
+                  </svg>
+                  <button type="button" class="sos-core-btn" id="sosCoreBtn">
+                    <span class="sos-label">SOS</span>
+                  </button>
+                </div>
+                <p class="sos-hold-helper">Hold 3 seconds to alert your circle & nearby responders</p>
+              </div>
+
+              <!-- QUICK ACTION CARDS -->
+              <div class="quick-tiles-grid">
+                <div class="quick-tile" id="btnQuickShareTrip">
+                  <div class="quick-tile-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-8-7.5-8-12a8 8 0 1 1 16 0c0 4.5-8 12-8 12z"/><circle cx="12" cy="9" r="3"/></svg>
+                  </div>
+                  <div class="quick-tile-title">Share my trip</div>
+                  <div class="quick-tile-desc">Live location, 30 min</div>
+                </div>
+
+                <div class="quick-tile" id="btnQuickFakeCall" onclick="triggerFakeCall(1200)">
+                  <div class="quick-tile-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  </div>
+                  <div class="quick-tile-title">Fake call</div>
+                  <div class="quick-tile-desc">Rings in 2 seconds</div>
+                </div>
+              </div>
+
+              <!-- UNUSUAL REPORTS BANNER -->
+              <div class="unusual-reports-banner" id="btnUnusualView">
+                <div class="banner-left">
+                  <div class="banner-badge-num">3</div>
+                  <div>
+                    <div class="banner-text-title">3 unusual reports nearby</div>
+                    <div class="banner-text-sub">MG Road area · last 2 hrs</div>
+                  </div>
+                </div>
+                <button type="button" class="banner-view-btn">View &rarr;</button>
+              </div>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 03 · LIVE TRIP SHARING
+                 ============================================== -->
+            <section class="screen-view" id="s03">
+              <div class="screen-header-back">
+                <div class="back-title-group">
+                  <button type="button" class="btn-icon-back" onclick="switchScreen('s02')">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                  </button>
+                  <h3 style="font-size: 1rem; font-weight: 700;">Trip to Rekha's home</h3>
+                </div>
+                <div class="live-pill">
+                  <span class="protected-dot" style="width: 6px; height: 6px;"></span>
+                  <span>Live</span>
+                </div>
+              </div>
+
+              <!-- GOOGLE MAPS INTEGRATION CANVAS -->
+              <div class="map-container-box">
+                <div class="map-element" id="tripMapContainer"></div>
+              </div>
+
+              <!-- TRIP DETAILS & WATCHERS -->
+              <div class="trip-status-card">
+                <div class="trip-time-row">
+                  <div>
+                    <div class="trip-min-remaining" id="tripRemainingMinutes">12 min remaining</div>
+                    <div class="trip-checkin-rule">Auto check-in if you stop moving for 3 min</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="watchers-block-title">Watching Now</div>
+                  <div class="watchers-avatars-row">
+                    <div class="contact-avatar" title="Amma">AM</div>
+                    <div class="contact-avatar avatar-rk" title="Rekha">RK</div>
+                    <div class="contact-avatar avatar-add" onclick="switchScreen('s04')" title="Add contact">+</div>
+                  </div>
+                </div>
+
+                <button type="button" class="btn-unsafe-alert" id="btnTripUnsafe">I feel unsafe — alert now</button>
+              </div>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 04 · TRUSTED CIRCLE & SAFE WORD
+                 ============================================== -->
+            <section class="screen-view" id="s04">
+              <div class="circle-intro">
+                <h2>Your circle</h2>
+                <p>These people are notified the moment you trigger an alert.</p>
+              </div>
+
+              <!-- GUARDIANS LIST -->
+              <div class="contacts-list" id="guardianContactsList">
+                <!-- Dynamically populated from Express API -->
+              </div>
+
+              <button type="button" class="btn-add-circle" onclick="showToast('Contact selector dialog simulated.')">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                + Add someone to your circle
+              </button>
+
+              <!-- SAFE WORD COMPONENT -->
+              <div class="safeword-card">
+                <div class="safeword-label">Safe Word</div>
+                <div class="safeword-phrase-row">
+                  <div class="safeword-quote" id="safeWordQuote">"Is the kettle on?"</div>
+                  <button type="button" class="btn-edit-inline" onclick="showToast('Safe word edit activated.')">Edit</button>
+                </div>
+                <p class="safeword-help-text">Say this in a call to silently alert your circle without alerting anyone near you.</p>
+              </div>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 05 · SOS COUNTDOWN (ACTIVE ALERT)
+                 ============================================== -->
+            <section class="screen-view screen-sos-countdown" id="s05">
+              <div class="sos-countdown-header">
+                <div class="countdown-top-pill" id="countdownTopPill">Sending in 3...</div>
+                <h2 class="sos-countdown-title">Alerting your circle</h2>
+                <p class="sos-countdown-sub">Amma, Rekha and Sanjay will get your live location and a recording will start.</p>
+              </div>
+
+              <!-- Circular Countdown -->
+              <div class="countdown-visual-center">
+                <div class="countdown-progress-ring-wrap">
+                  <svg width="160" height="160" viewBox="0 0 160 160">
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="8"/>
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#FFFFFF" stroke-width="8" stroke-dasharray="440" stroke-dashoffset="110"/>
+                  </svg>
+                  <div class="countdown-number" id="countdownNumber" style="position: absolute;">3</div>
+                </div>
+              </div>
+
+              <!-- Dispatched Guardians Status List -->
+              <div class="sos-dispatched-list">
+                <div class="dispatched-item">
+                  <span>Amma</span>
+                  <span class="dispatched-status">Notified · 0:02 ago</span>
+                </div>
+                <div class="dispatched-item">
+                  <span>Rekha</span>
+                  <span class="dispatched-status seen">● Seen</span>
+                </div>
+                <div class="dispatched-item">
+                  <span>Sanjay</span>
+                  <span class="dispatched-status">Notified · 0:02 ago</span>
+                </div>
+              </div>
+
+              <!-- Emergency Speed Dials -->
+              <div class="sos-emergency-speeddials">
+                <a class="speeddial-link" href="tel:100" onclick="showToast('Connecting to Police 100...')">Call police</a>
+                <span>&bull;</span>
+                <a class="speeddial-link" onclick="triggerFakeCall(0)">Start a fake call</a>
+              </div>
+
+              <!-- Cancel / Abort Button -->
+              <button type="button" class="btn-cancel-safe" id="btnCancelSos">Cancel — I'm okay</button>
+              <div class="cancel-safe-note">Tapping cancel will send an "I'm safe now" note to your circle</div>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 06 · COMMUNITY SAFETY MAP
+                 ============================================== -->
+            <section class="screen-view" id="s06">
+              <div class="community-map-header">
+                <h2>Nearby & recent</h2>
+                <p>Anonymous reports from people near you, last 24 hours.</p>
+              </div>
+
+              <!-- Category Filter Chips -->
+              <div class="filter-chips-row">
+                <button type="button" class="filter-chip active" data-filter="all">All</button>
+                <button type="button" class="filter-chip" data-filter="lighting">
+                  <span class="chip-dot yellow"></span> Poor lighting
+                </button>
+                <button type="button" class="filter-chip" data-filter="followed">
+                  <span class="chip-dot red"></span> Followed
+                </button>
+                <button type="button" class="filter-chip" data-filter="safe_zone">
+                  <span class="chip-dot green"></span> Safe zone
+                </button>
+              </div>
+
+              <!-- GOOGLE MAP FOR COMMUNITY INCIDENTS -->
+              <div class="map-container-box" style="height: 220px;">
+                <div class="map-element" id="communityMapContainer"></div>
+              </div>
+
+              <!-- Community Reports Stream -->
+              <div class="reports-stream-list" id="reportsStreamList">
+                <!-- Dynamically loaded from Express API -->
+              </div>
+
+              <button type="button" class="btn-report-here" id="btnReportHere">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                + Report something here
+              </button>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 07 · INCIDENT REPORT & JOURNAL
+                 ============================================== -->
+            <section class="screen-view" id="s07">
+              <div class="journal-intro">
+                <h2>Log what happened</h2>
+                <p>Private by default. Only you can see this unless you choose to share it.</p>
+              </div>
+
+              <div class="journal-form">
+                <div>
+                  <label class="form-label">Where</label>
+                  <input type="text" class="form-input-text" id="incidentLocationInput" value="📍 Brigade Road, near Metro exit 3">
+                </div>
+
+                <div>
+                  <label class="form-label">What Kind</label>
+                  <div class="category-tags-grid">
+                    <button type="button" class="category-tag-btn active">Followed</button>
+                    <button type="button" class="category-tag-btn">Verbal harassment</button>
+                    <button type="button" class="category-tag-btn">Unsafe area</button>
+                    <button type="button" class="category-tag-btn">Other</button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="form-label">Notes</label>
+                  <textarea class="form-textarea" id="incidentNotesInput" placeholder="A man in a grey jacket followed me from the metro station for two blocks, then turned off near the bakery..."></textarea>
+                </div>
+
+                <div class="audio-attach-card" id="btnAttachAudio" style="cursor: pointer;">
+                  <div class="audio-card-left">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    <span style="font-size: 0.85rem; font-weight: 600;">Attach the audio clip from tonight</span>
+                  </div>
+                  <span class="audio-file-tag">1 file</span>
+                </div>
+
+                <button type="button" class="btn-primary-large" id="btnSaveJournal" style="margin-top: 6px;">Save to my journal</button>
+                <button type="button" class="btn-ghost-large" id="btnSaveAndShare">Save & share to community map</button>
+              </div>
+            </section>
+
+            <!-- ==============================================
+                 SCREEN 08 · PROFILE & SAFETY SETTINGS
+                 ============================================== -->
+            <section class="screen-view" id="s08">
+              <div class="profile-card">
+                <div class="profile-avatar-large">PN</div>
+                <div class="profile-info">
+                  <h3 class="user-profile-name">Priya Nair</h3>
+                  <p class="user-profile-phone">+91 98••••••42</p>
+                </div>
+              </div>
+
+              <!-- SAFETY SECTION -->
+              <div class="settings-section-title">Safety</div>
+              <div class="settings-list">
+                <div class="settings-row">
+                  <span>Auto-record on SOS</span>
+                  <label class="toggle-switch">
+                    <input type="checkbox" checked id="toggleAutoRecord">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="settings-row">
+                  <span>Volume-button trigger</span>
+                  <label class="toggle-switch">
+                    <input type="checkbox" checked id="toggleVolumeTrigger">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+                <div class="settings-row">
+                  <span>Share battery level with circle</span>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="toggleShareBattery">
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- PRIVACY SECTION -->
+              <div class="settings-section-title">Privacy</div>
+              <div class="settings-list">
+                <div class="settings-row" style="cursor: pointer;" onclick="showToast('Journal privacy: Only Me')">
+                  <span>Who can see my journal</span>
+                  <span style="color: var(--text-muted); font-size: 0.82rem;">Only me &rsaquo;</span>
+                </div>
+                <div class="settings-row" style="cursor: pointer;" onclick="showToast('Community posts: Anonymous')">
+                  <span>Community posts</span>
+                  <span style="color: var(--text-muted); font-size: 0.82rem;">Anonymous &rsaquo;</span>
+                </div>
+              </div>
+
+              <!-- APP THEME SECTION (IN-PHONE) -->
+              <div class="settings-section-title">App Color Theme</div>
+              <div class="settings-list">
+                <div class="settings-row" style="cursor: pointer;" onclick="cycleNextTheme()">
+                  <span>Active Palette</span>
+                  <span id="settingsThemeValue" style="color: var(--accent-primary); font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                    <span class="theme-dot" id="settingsThemeDot" style="background: #E53935;"></span>
+                    <span id="settingsThemeText">Crimson</span> &rsaquo;
+                  </span>
+                </div>
+              </div>
+
+              <!-- EMERGENCY NUMBERS SECTION -->
+              <div class="settings-section-title">Emergency Numbers</div>
+              <div class="emergency-numbers-card">
+                <div class="emergency-numbers-text">
+                  <strong>Police</strong><br>
+                  Women's helpline<br>
+                  Emergency SOS
+                </div>
+                <div class="emergency-numbers-digits">
+                  <strong>100</strong><br>
+                  1091<br>
+                  112
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- Bottom Navigation Bar -->
+          <nav class="phone-nav-bar">
+            <button type="button" class="nav-item active" data-nav="home" data-screen="s02">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span>Home</span>
+            </button>
+            <button type="button" class="nav-item" data-nav="map" data-screen="s06">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+              <span>Map</span>
+            </button>
+            <button type="button" class="nav-item" data-nav="circle" data-screen="s04">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>Circle</span>
+            </button>
+            <button type="button" class="nav-item" data-nav="profile" data-screen="s08">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
+              <span>Profile</span>
+            </button>
+          </nav>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW MODE 2: HACKATHON GALLERY FLOW (ALL 8 SCREENS SIMULTANEOUSLY) -->
+    <div class="gallery-flow-view" id="galleryFlowView">
+      <div class="gallery-grid" id="galleryScreensGrid">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL: REALISTIC FAKE INCOMING CALL SIMULATOR -->
+  <div class="modal-overlay" id="fakeCallModal">
+    <div class="fake-call-phone">
+      <div class="call-top-info">
+        <div class="caller-avatar">👤</div>
+        <div class="caller-name">Dad</div>
+        <div class="call-type">Incoming Mobile Call...</div>
+      </div>
+
+      <div class="active-call-dialogue" id="callDialogueScript" style="display: none;">
+        <!-- Simulated automated speech prompt -->
+      </div>
+
+      <div class="call-actions-row">
+        <button type="button" class="call-action-btn btn-decline" id="btnCallDecline" title="Decline Call">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/></svg>
+        </button>
+
+        <button type="button" class="call-action-btn btn-accept" id="btnCallAccept" title="Accept Call">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

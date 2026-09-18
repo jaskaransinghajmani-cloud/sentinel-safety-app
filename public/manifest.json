@@ -1,0 +1,42 @@
+{
+  "name": "Sentinel — Women's Safety",
+  "short_name": "Sentinel",
+  "description": "Real-time women's safety ecosystem with live trip tracking, 3-second hold SOS, and community safety map.",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080B11",
+  "theme_color": "#E53935",
+  "orientation": "portrait",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["lifestyle", "utilities", "social"],
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Trigger SOS",
+      "url": "/#sos",
+      "description": "Quickly dispatch emergency SOS"
+    },
+    {
+      "name": "Live Trip",
+      "url": "/#trip",
+      "description": "Start live route sharing"
+    }
+  ]
+}
