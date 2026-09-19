@@ -437,7 +437,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Sentinel Server running on http://localhost:${PORT}`);
-  console.log(`Open in browser to see the interactive Women's Safety App.`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Sentinel Server running on http://localhost:${PORT}`);
+    console.log(`Open in browser to see the interactive Women's Safety App.`);
+  });
+}
+
+module.exports = app;
