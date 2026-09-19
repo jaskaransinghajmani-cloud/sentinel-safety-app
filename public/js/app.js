@@ -180,15 +180,95 @@ async function fetchProfile() {
   }
 }
 
+const DEFAULT_GUARDIANS = [
+  {
+    id: "g0",
+    name: "You (Emergency Alert)",
+    relation: "Primary Contact",
+    subtitle: "Receives instant SMS alert & live GPS link",
+    avatar: "ME",
+    avatarBg: "var(--accent-primary, #E53935)",
+    enabled: true,
+    mode: "Instant SMS Alert",
+    status: "Online",
+    phone: "+1 780-489-2413"
+  },
+  {
+    id: "g1",
+    name: "Amma",
+    relation: "Primary contact",
+    subtitle: "Primary contact · calls first",
+    avatar: "AM",
+    avatarBg: "var(--amber-gold, #F5A64E)",
+    enabled: true,
+    mode: "Calls first",
+    status: "Online",
+    phone: "+91 98201 11223"
+  },
+  {
+    id: "g2",
+    name: "Rekha",
+    relation: "Roommate",
+    subtitle: "Roommate · gets live location",
+    avatar: "RK",
+    avatarBg: "var(--azure-sky, #38BDF8)",
+    enabled: true,
+    mode: "Live location",
+    status: "Online",
+    phone: "+91 98202 33445"
+  },
+  {
+    id: "g3",
+    name: "Sanjay (brother)",
+    relation: "Brother",
+    subtitle: "Notified after 2 min unanswered",
+    avatar: "SJ",
+    avatarBg: "var(--violet-aura, #A855F7)",
+    enabled: true,
+    mode: "Delayed",
+    status: "Delayed (2m)",
+    phone: "+91 98203 55667"
+  }
+];
+
 async function fetchGuardians() {
+  // 1. Try loading from localStorage first for instant display and offline persistence
+  const saved = localStorage.getItem('sentinel_guardians');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.guardians = parsed;
+        renderGuardians();
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved guardians from localStorage', e);
+    }
+  }
+
+  // 2. Try fetching from backend Express API if connected
   try {
     const res = await fetch('/api/guardians');
-    const data = await res.json();
-    state.guardians = data;
-    renderGuardians();
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        state.guardians = data;
+        localStorage.setItem('sentinel_guardians', JSON.stringify(data));
+      }
+    }
   } catch (err) {
-    console.error('Failed to load guardians', err);
+    console.warn('Backend guardians endpoint unreachable, using local storage or defaults', err);
+    if (!state.guardians || state.guardians.length === 0) {
+      state.guardians = [...DEFAULT_GUARDIANS];
+      localStorage.setItem('sentinel_guardians', JSON.stringify(DEFAULT_GUARDIANS));
+    }
   }
+
+  if (!state.guardians || state.guardians.length === 0) {
+    state.guardians = [...DEFAULT_GUARDIANS];
+  }
+
+  renderGuardians();
 }
 
 async function fetchReports(type = 'all') {
@@ -475,9 +555,14 @@ function switchScreen(screenId) {
     btn.classList.toggle('active', btn.dataset.nav === activeNav);
   });
 
-  // Refresh maps if opening map screens
+  // Refresh screens
   if (screenId === 's03') {
     setTimeout(renderTripMap, 150);
+    renderWatchersRow();
+  } else if (screenId === 's04') {
+    renderGuardians();
+  } else if (screenId === 's05') {
+    renderSosGuardiansList();
   } else if (screenId === 's06') {
     setTimeout(renderCommunityMap, 150);
   }
@@ -1125,20 +1210,209 @@ function renderGuardians() {
   const listContainer = document.getElementById('guardianContactsList');
   if (!listContainer) return;
 
-  listContainer.innerHTML = state.guardians.map(g => `
-    <div class="contact-item-card">
-      <div class="contact-left">
-        <div class="contact-avatar" style="background: ${g.avatarBg};">${g.avatar}</div>
-        <div>
-          <div class="contact-name-title">${g.name}</div>
-          <div class="contact-subtitle">${g.subtitle}</div>
+  listContainer.innerHTML = state.guardians.map(g => {
+    const isPrimaryUser = g.id === 'g0';
+    const cleanPhone = (g.phone || '').replace(/[^\d+]/g, '');
+    const badgeText = g.mode === 'Calls first' ? 'Calls 1st' : (g.mode === 'Delayed' ? 'Delayed 2m' : 'Live GPS');
+    const badgeClass = g.mode === 'Delayed' ? 'delayed' : '';
+
+    return `
+      <div class="contact-item-card" id="guardianCard-${g.id}">
+        <div class="contact-left">
+          <div class="contact-avatar" style="background: ${g.avatarBg || '#E53935'}; color: #FFF;">${g.avatar || 'GU'}</div>
+          <div>
+            <div class="contact-name-title">${escapeHtml(g.name)}</div>
+            <div class="contact-subtitle">${escapeHtml(g.subtitle || g.relation || 'Circle Member')}</div>
+            ${g.phone ? `
+              <div class="contact-phone-badge">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>${escapeHtml(g.phone)}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <div class="contact-actions-right">
+          <span class="status-chip-badge ${badgeClass}">${badgeText}</span>
+          ${g.phone ? `
+            <a class="btn-contact-action call" href="tel:${cleanPhone}" title="Call ${escapeHtml(g.name)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </a>
+            <a class="btn-contact-action sms" href="sms:${cleanPhone}?body=${encodeURIComponent('Sentinel Safety Alert check-in')}" title="Message ${escapeHtml(g.name)}">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </a>
+          ` : ''}
+          ${!isPrimaryUser ? `
+            <button type="button" class="btn-contact-action delete" onclick="deleteGuardian('${g.id}')" title="Remove from Circle">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+            </button>
+          ` : ''}
         </div>
       </div>
-      <div>
-        <span class="status-chip-badge ${g.mode === 'Delayed' ? 'delayed' : ''}">${g.mode === 'Delayed' ? 'Delayed' : 'On'}</span>
-      </div>
-    </div>
+    `;
+  }).join('');
+
+  // Also update watchers row on screen 03 if present
+  renderWatchersRow();
+  // Also update SOS countdown list on screen 05
+  renderSosGuardiansList();
+}
+
+function renderWatchersRow() {
+  const watchersRow = document.querySelector('.watchers-avatars-row');
+  if (!watchersRow) return;
+
+  const avatarsHtml = state.guardians.slice(0, 4).map(g => `
+    <div class="contact-avatar" style="background: ${g.avatarBg || '#E53935'}; color:#FFF;" title="${escapeHtml(g.name)}">${g.avatar || 'GU'}</div>
   `).join('');
+
+  watchersRow.innerHTML = avatarsHtml + `
+    <div class="contact-avatar avatar-add" onclick="switchScreen('s04')" title="Add contact">+</div>
+  `;
+}
+
+function renderSosGuardiansList() {
+  const list = document.querySelector('.sos-dispatched-list');
+  if (!list) return;
+
+  list.innerHTML = state.guardians.map((g, idx) => {
+    const isMe = g.id === 'g0';
+    return `
+      <div class="dispatched-item ${isMe ? 'highlight-recipient' : ''}">
+        <span>${isMe ? '📱 ' : ''}${escapeHtml(g.name)} ${g.phone ? `(${escapeHtml(g.phone)})` : ''}</span>
+        <span class="dispatched-status ${isMe || idx === 1 ? 'seen' : ''}">
+          ${isMe ? '● Alert Dispatched' : (idx === 1 ? '● Seen' : 'Notified · 0:02 ago')}
+        </span>
+      </div>
+    `;
+  }).join('');
+}
+
+// ==========================================
+// 8.1 CIRCLE MEMBER MODAL MANAGEMENT
+// ==========================================
+window.openAddCircleModal = function() {
+  const modal = document.getElementById('addCircleModal');
+  if (modal) {
+    modal.classList.add('active');
+    const nameInput = document.getElementById('memberFullName');
+    if (nameInput) {
+      setTimeout(() => nameInput.focus(), 150);
+    }
+  }
+};
+
+window.closeAddCircleModal = function() {
+  const modal = document.getElementById('addCircleModal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+  const form = document.getElementById('addCircleForm');
+  if (form) form.reset();
+};
+
+window.handleBackdropClick = function(e) {
+  if (e.target && e.target.id === 'addCircleModal') {
+    closeAddCircleModal();
+  }
+};
+
+window.handleAddCircleSubmit = async function(e) {
+  e.preventDefault();
+
+  const nameInput = document.getElementById('memberFullName');
+  const phoneInput = document.getElementById('memberPhoneNumber');
+  const relInput = document.getElementById('memberRelationship');
+  const modeInput = document.getElementById('memberAlertMode');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const phone = phoneInput ? phoneInput.value.trim() : '';
+  const relation = relInput ? relInput.value : 'Friend';
+  const mode = modeInput ? modeInput.value : 'Live location';
+
+  if (!name || !phone) {
+    showToast('Please enter both name and phone number');
+    return;
+  }
+
+  // Generate 2-letter initials
+  const initials = name.split(' ')
+    .filter(Boolean)
+    .map(p => p[0].toUpperCase())
+    .slice(0, 2)
+    .join('') || 'GU';
+
+  // Palette colors for avatars
+  const avatarColors = [
+    '#E53935', '#F5A64E', '#10B981', '#38BDF8', 
+    '#A855F7', '#EC4899', '#3B82F6', '#14B8A6'
+  ];
+  const chosenColor = avatarColors[Math.floor(Math.random() * avatarColors.length)];
+
+  const newGuardian = {
+    id: 'g' + Date.now(),
+    name,
+    relation,
+    subtitle: `${relation} · ${mode === 'Calls first' ? 'Calls first' : (mode === 'Delayed' ? 'Delayed 2m' : 'Gets live location')}`,
+    avatar: initials,
+    avatarBg: chosenColor,
+    enabled: true,
+    mode,
+    status: 'Online',
+    phone
+  };
+
+  // Add to local state
+  state.guardians.push(newGuardian);
+  localStorage.setItem('sentinel_guardians', JSON.stringify(state.guardians));
+
+  // Sync to Express backend API if active
+  fetch('/api/guardians', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      relation,
+      phone,
+      mode
+    })
+  }).catch(err => console.warn('Could not sync to backend /api/guardians (using local data)', err));
+
+  // Update UI immediately
+  renderGuardians();
+  closeAddCircleModal();
+  playSound('click');
+  showToast(`✅ Added ${name} (${phone}) to your safety circle!`);
+};
+
+window.deleteGuardian = async function(id) {
+  const g = state.guardians.find(item => item.id === id);
+  const name = g ? g.name : 'contact';
+
+  if (!confirm(`Are you sure you want to remove ${name} from your safety circle?`)) {
+    return;
+  }
+
+  state.guardians = state.guardians.filter(item => item.id !== id);
+  localStorage.setItem('sentinel_guardians', JSON.stringify(state.guardians));
+
+  // Sync delete to backend API if active
+  fetch(`/api/guardians/${id}`, { method: 'DELETE' })
+    .catch(err => console.warn('Could not sync DELETE to backend', err));
+
+  renderGuardians();
+  playSound('click');
+  showToast(`Removed ${name} from your circle.`);
+};
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 function renderReports() {

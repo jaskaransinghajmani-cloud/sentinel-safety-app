@@ -414,7 +414,7 @@
                 <!-- Dynamically populated from Express API -->
               </div>
 
-              <button type="button" class="btn-add-circle" onclick="showToast('Contact selector dialog simulated.')">
+              <button type="button" class="btn-add-circle" id="btnAddCircleMember" onclick="openAddCircleModal()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 + Add someone to your circle
               </button>
@@ -744,6 +744,66 @@
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
         </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ADD CIRCLE MEMBER MODAL -->
+  <div class="modal-backdrop" id="addCircleModal" onclick="handleBackdropClick(event)">
+    <div class="modal-dialog-card" onclick="event.stopPropagation()">
+      <div class="modal-header-row">
+        <div class="modal-title-wrap">
+          <div class="modal-icon-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+          </div>
+          <div>
+            <h3 class="modal-heading">Add to Your Circle</h3>
+            <p class="modal-subtext">They will receive your live GPS & emergency alerts</p>
+          </div>
+        </div>
+        <button type="button" class="btn-modal-close" onclick="closeAddCircleModal()" aria-label="Close">&times;</button>
+      </div>
+
+      <form id="addCircleForm" onsubmit="handleAddCircleSubmit(event)">
+        <div class="form-group-field">
+          <label class="form-field-label" for="memberFullName">Contact Name <span class="required-star">*</span></label>
+          <input type="text" id="memberFullName" class="form-text-input" placeholder="e.g. Mom, Rahul, Dr. Anita" required autocomplete="name">
+        </div>
+
+        <div class="form-group-field">
+          <label class="form-field-label" for="memberPhoneNumber">Phone Number <span class="required-star">*</span></label>
+          <input type="tel" id="memberPhoneNumber" class="form-text-input" placeholder="e.g. +1 780-489-2413 or 9820011223" required autocomplete="tel">
+          <div class="field-hint">Include country code for international numbers (e.g. +1 or +91)</div>
+        </div>
+
+        <div class="form-group-field">
+          <label class="form-field-label" for="memberRelationship">Relationship</label>
+          <select id="memberRelationship" class="form-select-input">
+            <option value="Family">Family</option>
+            <option value="Parent">Parent / Guardian</option>
+            <option value="Sibling">Sibling</option>
+            <option value="Partner">Partner / Spouse</option>
+            <option value="Friend" selected>Friend</option>
+            <option value="Roommate">Roommate</option>
+            <option value="Colleague">Colleague</option>
+            <option value="Neighbor">Neighbor</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div class="form-group-field">
+          <label class="form-field-label" for="memberAlertMode">Emergency Notification Priority</label>
+          <select id="memberAlertMode" class="form-select-input">
+            <option value="Calls first">Instant Call & SMS (Calls First)</option>
+            <option value="Live location" selected>Live Location Link (Standard)</option>
+            <option value="Delayed">Delayed (Notified if unanswered 2 min)</option>
+          </select>
+        </div>
+
+        <div class="modal-actions-grid">
+          <button type="button" class="btn-modal-cancel" onclick="closeAddCircleModal()">Cancel</button>
+          <button type="submit" class="btn-modal-save">Add Member</button>
+        </div>
+      </form>
     </div>
   </div>
 
