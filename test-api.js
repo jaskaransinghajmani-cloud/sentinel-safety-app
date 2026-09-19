@@ -60,10 +60,10 @@ async function runTests() {
   });
 
   // 2. Profile
-  await test('GET /api/profile returns Priya Nair and safe word', async () => {
+  await test('GET /api/profile returns Jaskaran Singh and safe word', async () => {
     const res = await request('GET', '/api/profile');
-    if (res.status !== 200 || res.data.name !== 'Priya Nair' || !res.data.safeWord) {
-      throw new Error(`Invalid profile data: ${JSON.stringify(res.data)}`);
+    if (res.status !== 200 || res.data.name !== 'Jaskaran Singh' || !res.data.safeWord) {
+      throw new Error(`Unexpected profile data: ${JSON.stringify(res.data)}`);
     }
   });
 

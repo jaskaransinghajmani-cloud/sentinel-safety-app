@@ -13,11 +13,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 // In-Memory Database for Hackathon Prototype
 const db = {
   profile: {
-    name: "Priya Nair",
-    phone: "+91 98••••••42",
-    avatar: "PN",
+    name: "Jaskaran Singh",
+    phone: "+1 780-489-2413",
+    avatar: "JS",
     status: "Protected",
     safeWord: "Is the kettle on?",
+    sosNumber: "7804892413",
+    region: "US_CA",
     settings: {
       autoRecordSOS: true,
       volumeTrigger: true,
@@ -26,9 +28,9 @@ const db = {
       communityPosts: "Anonymous"
     },
     emergencyContacts: {
-      police: "100",
-      womenHelpline: "1091",
-      emergency: "112"
+      police: "911",
+      womenHelpline: "988",
+      emergency: "911"
     }
   },
   guardians: [
