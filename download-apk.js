@@ -102,8 +102,13 @@ const req = https.request('https://pwabuilder-cloudapk.azurewebsites.net/generat
         const signedApk = binaries.find(f => f.endsWith('.apk') && !f.includes('unsigned')) || binaries.find(f => f.endsWith('.apk'));
         if (signedApk) {
           const rootApk = path.join(__dirname, 'sentinel.apk');
+          const publicApk = path.join(__dirname, 'public', 'sentinel.apk');
+          const publicAppApk = path.join(__dirname, 'public', 'app.apk');
           fs.copyFileSync(signedApk, rootApk);
+          fs.copyFileSync(signedApk, publicApk);
+          fs.copyFileSync(signedApk, publicAppApk);
           console.log(`👉 Copied signed APK to root: ${rootApk}`);
+          console.log(`👉 Copied signed APK to public: ${publicApk}`);
         }
 
         console.log('===============================================================');

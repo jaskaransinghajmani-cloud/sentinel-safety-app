@@ -434,6 +434,17 @@ app.post('/api/fake-call/trigger', (req, res) => {
   });
 });
 
+// 10. Direct Android APK Download
+app.get(['/sentinel.apk', '/app.apk'], (req, res) => {
+  const apkPath = path.join(__dirname, 'public', 'sentinel.apk');
+  if (fs.existsSync(apkPath)) {
+    res.setHeader('Content-Type', 'application/vnd.android.package-archive');
+    res.download(apkPath, 'Sentinel-Safety.apk');
+  } else {
+    res.status(404).send('APK not found. Please run node download-apk.js to build.');
+  }
+});
+
 // Catch-all: serve SPA index.html
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
