@@ -20,6 +20,9 @@ const state = {
   sosHoldProgress: 0,
   countdownTimer: null,
   countdownSeconds: 3,
+  autoCallPoliceOnSos: true,
+  policeNumber: '100',
+  userAlertNumber: '7804892413',
   fakeCallTimer: null,
   audioCtx: null
 };
@@ -572,6 +575,9 @@ async function triggerSos() {
   if (numElem) numElem.textContent = '3';
   if (pillElem) pillElem.textContent = 'Sending in 3...';
 
+  // Directly send message to 7804892413 immediately without asking
+  sendEmergencySms(state.userAlertNumber || '7804892413');
+
   // Trigger backend API
   try {
     const res = await fetch('/api/sos/trigger', {
@@ -601,7 +607,14 @@ async function triggerSos() {
       clearInterval(state.countdownTimer);
       if (numElem) numElem.textContent = '!';
       if (pillElem) pillElem.textContent = 'Alert broadcasted!';
-      showToast('Emergency SOS dispatched to Amma, Rekha & Sanjay!');
+      showToast('Emergency SOS & SMS alert dispatched to 780-489-2413 and your circle!');
+
+      // Auto-call police directly if enabled
+      if (state.autoCallPoliceOnSos) {
+        setTimeout(() => {
+          callPoliceDirectly(state.policeNumber || '100');
+        }, 500);
+      }
     }
   }, 1000);
 }
@@ -623,6 +636,44 @@ async function cancelSos() {
   showToast('SOS Aborted. "I\'m safe now" status sent to circle.');
   switchScreen('s02');
 }
+
+// Direct Police Calling Helper
+window.callPoliceDirectly = function(number = '100') {
+  playSound('alert');
+  showToast(`Dialing Police (${number})...`);
+  console.log(`[Emergency Dispatch] Direct police call placed to: ${number}`);
+  // Short delay to allow alert audio & toast UI to render before browser initiates tel protocol
+  setTimeout(() => {
+    window.location.href = `tel:${number}`;
+  }, 350);
+};
+
+// Emergency Direct SMS Dispatch Helper (Zero Prompts / Don't Ask)
+window.sendEmergencySms = function(number = '7804892413', lat = 12.9716, lng = 77.5946) {
+  const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+  const rawMessage = `EMERGENCY SOS ALERT! I need immediate help. My current location: ${mapLink}`;
+  const message = encodeURIComponent(rawMessage);
+
+  // Directly dispatch to backend API without asking
+  fetch('/api/sms/send-direct', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ to: number, message: rawMessage })
+  }).catch(e => console.warn('Direct SMS backend dispatch failed', e));
+
+  showToast(`Direct message sent to ${number}!`);
+  console.log(`[Direct SMS] Dispatched immediately to ${number} without asking`);
+
+  // Directly launch device SMS composer without asking
+  setTimeout(() => {
+    window.location.href = `sms:${number}?body=${message}`;
+  }, 200);
+};
+
+window.toggleAutoCallSetting = function(enabled) {
+  state.autoCallPoliceOnSos = !!enabled;
+  showToast(state.autoCallPoliceOnSos ? 'Auto-dial Police on SOS: Enabled' : 'Auto-dial Police on SOS: Disabled');
+};
 
 // ==========================================
 // 6. FAKE CALL SIMULATOR

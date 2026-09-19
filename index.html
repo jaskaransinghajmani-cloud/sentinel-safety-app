@@ -300,6 +300,30 @@
                 <p class="sos-hold-helper">Hold 3 seconds to alert your circle & nearby responders</p>
               </div>
 
+              <!-- 1-TAP DIRECT POLICE CALL BANNER -->
+              <div class="direct-police-banner" id="btnDirectPoliceCall" onclick="callPoliceDirectly('100')">
+                <div class="direct-police-icon">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M14.05 2a9 9 0 0 1 8 7.94"/><path d="M14.05 6A5 5 0 0 1 18 10"/></svg>
+                </div>
+                <div class="direct-police-info">
+                  <div class="direct-police-title">Call Police Directly (100)</div>
+                  <div class="direct-police-sub">1-Tap instant emergency connection</div>
+                </div>
+                <button type="button" class="direct-police-dial-btn" aria-label="Direct Call Police">CALL</button>
+              </div>
+
+              <!-- 1-TAP DIRECT SMS ALERT BANNER (DON'T ASK) -->
+              <div class="direct-sms-banner" id="btnDirectSmsAlert" onclick="sendEmergencySms('7804892413')">
+                <div class="direct-sms-icon">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="direct-sms-info">
+                  <div class="direct-sms-title">Direct SMS to 780-489-2413</div>
+                  <div class="direct-sms-sub">Instant 1-tap message with live GPS location</div>
+                </div>
+                <button type="button" class="direct-sms-send-btn" aria-label="Direct Send SMS">SEND</button>
+              </div>
+
               <!-- QUICK ACTION CARDS -->
               <div class="quick-tiles-grid">
                 <div class="quick-tile" id="btnQuickShareTrip">
@@ -413,7 +437,7 @@
               <div class="sos-countdown-header">
                 <div class="countdown-top-pill" id="countdownTopPill">Sending in 3...</div>
                 <h2 class="sos-countdown-title">Alerting your circle</h2>
-                <p class="sos-countdown-sub">Amma, Rekha and Sanjay will get your live location and a recording will start.</p>
+                <p class="sos-countdown-sub" id="sosCountdownSub">Emergency SMS alert & live GPS location dispatched to <strong>780-489-2413</strong>, Amma, Rekha and Sanjay.</p>
               </div>
 
               <!-- Circular Countdown -->
@@ -429,6 +453,10 @@
 
               <!-- Dispatched Guardians Status List -->
               <div class="sos-dispatched-list">
+                <div class="dispatched-item highlight-recipient">
+                  <span>📱 You (780-489-2413)</span>
+                  <span class="dispatched-status seen">● Alert Dispatched</span>
+                </div>
                 <div class="dispatched-item">
                   <span>Amma</span>
                   <span class="dispatched-status">Notified · 0:02 ago</span>
@@ -443,11 +471,19 @@
                 </div>
               </div>
 
-              <!-- Emergency Speed Dials -->
-              <div class="sos-emergency-speeddials">
-                <a class="speeddial-link" href="tel:100" onclick="showToast('Connecting to Police 100...')">Call police</a>
-                <span>&bull;</span>
-                <a class="speeddial-link" onclick="triggerFakeCall(0)">Start a fake call</a>
+              <!-- Emergency Speed Dials & Direct Police Button -->
+              <div class="sos-emergency-actions">
+                <button type="button" class="btn-call-police-emergency" onclick="callPoliceDirectly('100')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  <span>🚨 Call Police Now (100)</span>
+                </button>
+                <button type="button" class="btn-send-sms-emergency" onclick="sendEmergencySms('7804892413')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span>📲 Direct Send SMS to 780-489-2413</span>
+                </button>
+                <div class="sos-secondary-links">
+                  <a class="speeddial-link" onclick="triggerFakeCall(0)">Start a fake call</a>
+                </div>
               </div>
 
               <!-- Cancel / Abort Button -->
@@ -600,18 +636,53 @@
                 </div>
               </div>
 
-              <!-- EMERGENCY NUMBERS SECTION -->
-              <div class="settings-section-title">Emergency Numbers</div>
-              <div class="emergency-numbers-card">
-                <div class="emergency-numbers-text">
-                  <strong>Police</strong><br>
-                  Women's helpline<br>
-                  Emergency SOS
+              <!-- EMERGENCY DIRECT DIALS -->
+              <div class="settings-section-title">Emergency Direct Dials</div>
+              <div class="emergency-numbers-list">
+                <div class="emergency-number-row" onclick="callPoliceDirectly('100')">
+                  <div class="emergency-contact-info">
+                    <strong>Police Control Room</strong>
+                    <span>Direct emergency assistance</span>
+                  </div>
+                  <div class="emergency-contact-action">
+                    <span class="emergency-digit-badge">100</span>
+                    <span class="emergency-call-btn">Call</span>
+                  </div>
                 </div>
-                <div class="emergency-numbers-digits">
-                  <strong>100</strong><br>
-                  1091<br>
-                  112
+                <div class="emergency-number-row" onclick="callPoliceDirectly('1091')">
+                  <div class="emergency-contact-info">
+                    <strong>Women's Helpline</strong>
+                    <span>24/7 dedicated support</span>
+                  </div>
+                  <div class="emergency-contact-action">
+                    <span class="emergency-digit-badge">1091</span>
+                    <span class="emergency-call-btn">Call</span>
+                  </div>
+                </div>
+                <div class="emergency-number-row" onclick="callPoliceDirectly('112')">
+                  <div class="emergency-contact-info">
+                    <strong>National Emergency (SOS)</strong>
+                    <span>All-in-one emergency dispatch</span>
+                  </div>
+                  <div class="emergency-contact-action">
+                    <span class="emergency-digit-badge">112</span>
+                    <span class="emergency-call-btn">Call</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- SOS RESPONSE AUTOMATION -->
+              <div class="settings-section-title">SOS Response Automation</div>
+              <div class="settings-list">
+                <div class="settings-row">
+                  <div>
+                    <div style="font-weight: 600;">Auto-dial Police on SOS</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">Directly calls 100 when SOS countdown ends</div>
+                  </div>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="toggleAutoCallPolice" checked onchange="toggleAutoCallSetting(this.checked)">
+                    <span class="toggle-slider"></span>
+                  </label>
                 </div>
               </div>
             </section>
