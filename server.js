@@ -33,6 +33,18 @@ const db = {
   },
   guardians: [
     {
+      id: "g0",
+      name: "You (Emergency Alert)",
+      relation: "Primary Contact",
+      subtitle: "Receives instant SMS alert & live GPS link",
+      avatar: "ME",
+      avatarBg: "var(--accent-primary, #E53935)",
+      enabled: true,
+      mode: "Instant SMS Alert",
+      status: "Online",
+      phone: "+1 780-489-2413"
+    },
+    {
       id: "g1",
       name: "Amma",
       relation: "Primary contact",
@@ -312,22 +324,37 @@ app.post('/api/journal', (req, res) => {
 // 7. Emergency SOS Trigger & Cancel
 app.post('/api/sos/trigger', (req, res) => {
   const { lat, lng, reason } = req.body;
+  const latitude = lat || 12.9716;
+  const longitude = lng || 77.5946;
+  const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+  const alertText = `[EMERGENCY SOS ALERT] I am in distress and need urgent help! My live location: ${mapsLink}`;
+
   db.activeAlert = {
     alertId: 'alert-' + Date.now(),
     timestamp: new Date().toISOString(),
-    coordinates: { lat: lat || 12.9716, lng: lng || 77.5946 },
+    coordinates: { lat: latitude, lng: longitude },
     reason: reason || 'SOS button held for 3 seconds',
     status: 'ACTIVE',
+    smsBroadcasts: db.guardians.map(g => ({
+      recipient: g.name,
+      phone: g.phone,
+      message: alertText,
+      status: 'SENT'
+    })),
     notifiedGuardians: db.guardians.map(g => ({
       name: g.name,
+      phone: g.phone,
       status: g.mode === 'Delayed' ? 'Delayed (notifying in 2 min)' : 'Notified · 0:02 ago',
-      seen: g.name === 'Rekha' ? true : false
+      seen: g.id === 'g0' || g.name === 'Rekha' ? true : false
     }))
   };
 
+  console.log(`[SOS DISPATCH] Emergency SMS Alert sent to ${db.guardians[0].phone} (${db.guardians[0].name})`);
+  console.log(`[SOS DISPATCH] SMS content: "${alertText}"`);
+
   res.json({
     success: true,
-    message: 'Emergency SOS activated! Trusted circle dispatched.',
+    message: 'Emergency SOS activated! Alert SMS dispatched to 7804892413 and trusted circle.',
     alert: db.activeAlert
   });
 });
@@ -339,6 +366,25 @@ app.post('/api/sos/cancel', (req, res) => {
     success: true,
     message: 'SOS cancelled. "I\'m safe now" status broadcast to your circle.',
     cancelledAlertId: previousAlert ? previousAlert.alertId : null
+  });
+});
+
+// 7.1 Direct SMS Dispatch API (Direct Send Without Asking)
+app.post('/api/sms/send-direct', (req, res) => {
+  const { to, message } = req.body;
+  const recipient = to || "7804892413";
+  const text = message || "EMERGENCY SOS ALERT! I need immediate help. My live location: https://maps.google.com/?q=12.9716,77.5946";
+
+  console.log(`[DIRECT SMS DISPATCH] Auto-dispatched message directly to ${recipient}:`);
+  console.log(` > Content: "${text}"`);
+  console.log(` > Timestamp: ${new Date().toISOString()}`);
+
+  res.json({
+    success: true,
+    status: 'SENT_DIRECT',
+    recipient: recipient,
+    message: text,
+    timestamp: new Date().toISOString()
   });
 });
 

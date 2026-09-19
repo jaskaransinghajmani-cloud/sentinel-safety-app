@@ -1092,6 +1092,155 @@ body {
   line-height: 1.4;
 }
 
+/* Direct 1-Tap Police Call Banner (Screen 02) */
+.direct-police-banner {
+  background: linear-gradient(135deg, rgba(229, 57, 53, 0.22) 0%, rgba(185, 28, 28, 0.35) 100%);
+  border: 1.5px solid rgba(239, 68, 68, 0.5);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 16px rgba(229, 57, 53, 0.2);
+}
+
+.direct-police-banner:hover {
+  background: linear-gradient(135deg, rgba(229, 57, 53, 0.32) 0%, rgba(185, 28, 28, 0.45) 100%);
+  border-color: #EF4444;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(229, 57, 53, 0.35);
+}
+
+.direct-police-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #DC2626;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px rgba(220, 38, 38, 0.6);
+  animation: pulse-badge 2s infinite ease-in-out;
+}
+
+.direct-police-info {
+  flex: 1;
+  text-align: left;
+}
+
+.direct-police-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.direct-police-sub {
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 2px;
+}
+
+.direct-police-dial-btn {
+  background: #FFFFFF;
+  color: #DC2626;
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: all var(--transition-fast);
+}
+
+.direct-police-dial-btn:hover {
+  background: #FEE2E2;
+  transform: scale(1.05);
+}
+
+/* Direct 1-Tap SMS Alert Banner (Screen 02) */
+.direct-sms-banner {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(29, 78, 216, 0.28) 100%);
+  border: 1.5px solid rgba(59, 130, 246, 0.45);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.18);
+}
+
+.direct-sms-banner:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28) 0%, rgba(29, 78, 216, 0.38) 100%);
+  border-color: #3B82F6;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+}
+
+.direct-sms-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #2563EB;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(37, 99, 235, 0.5);
+}
+
+.direct-sms-info {
+  flex: 1;
+  text-align: left;
+}
+
+.direct-sms-title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.direct-sms-sub {
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.82);
+  margin-top: 2px;
+}
+
+.direct-sms-send-btn {
+  background: #FFFFFF;
+  color: #2563EB;
+  font-family: var(--font-heading);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: all var(--transition-fast);
+}
+
+.direct-sms-send-btn:hover {
+  background: #EFF6FF;
+  transform: scale(1.05);
+}
+
 /* Quick Action Tiles */
 .quick-tiles-grid {
   display: grid;
@@ -1565,11 +1714,77 @@ body {
   font-weight: 700;
 }
 
-.sos-emergency-speeddials {
+.sos-emergency-actions {
   display: flex;
-  justify-content: center;
-  gap: 16px;
+  flex-direction: column;
+  align-items: center;
   margin-bottom: 16px;
+  width: 100%;
+}
+
+.btn-call-police-emergency {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 20px;
+  background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+  color: #FFFFFF;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: 1.5px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+  transition: all var(--transition-fast);
+  margin-bottom: 12px;
+  animation: pulse-badge 1.8s infinite ease-in-out;
+}
+
+.btn-call-police-emergency:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 25px rgba(220, 38, 38, 0.6);
+  border-color: #FFFFFF;
+}
+
+.btn-send-sms-emergency {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 18px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #FFFFFF;
+  font-family: var(--font-heading);
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  margin-bottom: 10px;
+}
+
+.btn-send-sms-emergency:hover {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.dispatched-item.highlight-recipient {
+  background: rgba(229, 57, 53, 0.28);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-weight: 700;
+}
+
+.sos-secondary-links {
+  margin-top: 4px;
 }
 
 .speeddial-link {
@@ -1949,29 +2164,73 @@ input:checked + .toggle-slider:before {
   transform: translateX(20px);
 }
 
-.emergency-numbers-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 14px;
+/* Emergency Numbers List in Settings (Screen 08) */
+.emergency-numbers-list {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 8px;
 }
 
-.emergency-numbers-text {
-  font-size: 0.85rem;
-  color: var(--text-main);
-  line-height: 1.4;
+.emergency-number-row {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
-.emergency-digits {
+.emergency-number-row:hover {
+  background: var(--bg-surface-elevated);
+  border-color: var(--accent-primary);
+  transform: translateX(2px);
+}
+
+.emergency-contact-info strong {
+  display: block;
+  font-size: 0.88rem;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.emergency-contact-info span {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.emergency-contact-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emergency-digit-badge {
   font-family: var(--font-mono);
   font-weight: 700;
   font-size: 0.95rem;
   color: var(--accent-primary);
-  text-align: right;
+}
+
+.emergency-call-btn {
+  background: var(--accent-primary);
+  color: #FFFFFF;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.03em;
+  transition: all var(--transition-fast);
+}
+
+.emergency-number-row:hover .emergency-call-btn {
+  filter: brightness(1.15);
+  transform: scale(1.05);
 }
 
 /* ==========================================================
