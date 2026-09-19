@@ -1,13 +1,13 @@
 // Sentinel Safety App - Service Worker for PWA Offline Caching & Installability
-const CACHE_NAME = 'sentinel-safety-v1';
+const CACHE_NAME = 'sentinel-safety-v2';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/manifest.json',
-  '/assets/icon-192.png',
-  '/assets/icon-512.png'
+  './',
+  './index.html',
+  './css/style.css',
+  './js/app.js',
+  './manifest.json',
+  './assets/icon-192.png',
+  './assets/icon-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -57,7 +57,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        return caches.match(event.request).then((cached) => cached || caches.match('/index.html'));
+        return caches.match(event.request).then((cached) => cached || caches.match('./index.html'));
       })
   );
 });

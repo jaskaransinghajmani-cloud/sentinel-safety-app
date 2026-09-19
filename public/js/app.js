@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 let deferredInstallPrompt = null;
 function registerServiceWorker() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then((reg) => console.log('[Sentinel] Service Worker registered with scope:', reg.scope))
       .catch((err) => console.warn('[Sentinel] Service Worker registration failed:', err));
   }
