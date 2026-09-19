@@ -21,7 +21,7 @@ const state = {
   countdownTimer: null,
   countdownSeconds: 3,
   autoCallPoliceOnSos: true,
-  policeNumber: '100',
+  policeNumber: '911',
   userAlertNumber: '7804892413',
   fakeCallTimer: null,
   audioCtx: null
@@ -31,6 +31,12 @@ const state = {
 let tripMap = null;
 let communityMap = null;
 let communityMarkers = [];
+let leafletTripMap = null;
+let leafletCommunityMap = null;
+let leafletCommunityMarkers = [];
+let leafletUserMarker = null;
+let userLiveCoords = [53.5461, -113.4938]; // Default Edmonton, AB (matches +1 780 area code)
+let userHasLiveGps = false;
 
 // ==========================================
 // 1. INITIALIZATION & DATA LOADING
@@ -45,6 +51,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupHardwareButtons();
   setupSettingsToggles();
   
+  // Request user's live GPS location for real map centering
+  requestUserGeolocation();
+
   // Fetch initial data from backend Express API
   await fetchConfig();
   await fetchProfile();
@@ -171,13 +180,121 @@ async function fetchConfig() {
   }
 }
 
+function requestUserGeolocation() {
+  if ('geolocation' in navigator) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        userLiveCoords = [pos.coords.latitude, pos.coords.longitude];
+        userHasLiveGps = true;
+        console.log('[Sentinel] Live GPS acquired:', userLiveCoords);
+        
+        // Update reports to be around the user's actual location
+        state.reports = getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]);
+        localStorage.setItem('sentinel_reports', JSON.stringify(state.reports));
+        
+        // Re-center maps if already open
+        if (leafletCommunityMap) {
+          leafletCommunityMap.setView(userLiveCoords, 14);
+          if (leafletUserMarker) leafletUserMarker.setLatLng(userLiveCoords);
+          updateLeafletCommunityMarkers(state.reports);
+        }
+        if (leafletTripMap) {
+          renderTripMap();
+        }
+      },
+      (err) => {
+        console.warn('[Sentinel] Geolocation denied or unavailable, using Edmonton AB default:', err.message);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+    );
+  }
+}
+
+const EMERGENCY_REGIONS = {
+  US_CA: {
+    label: "US & Canada",
+    policeNumber: "911",
+    autoDialText: "Directly calls 911 when SOS countdown ends",
+    policeBtnText: "🚨 Call Emergency Dispatch (911)",
+    dials: [
+      { name: "Emergency Dispatch (Police / Fire / EMS)", number: "911", desc: "24/7 North American Emergency Service", badge: "911" },
+      { name: "Suicide & Crisis Lifeline", number: "988", desc: "Free & confidential 24/7 support", badge: "988" },
+      { name: "National Domestic Violence Hotline", number: "1-800-799-7233", desc: "Confidential crisis intervention & safety", badge: "24/7" },
+      { name: "Alberta Crisis Support Services", number: "211", desc: "Community resources & crisis assistance", badge: "211" }
+    ]
+  },
+  IN: {
+    label: "India",
+    policeNumber: "100",
+    autoDialText: "Directly calls 100 / 112 when SOS countdown ends",
+    policeBtnText: "🚨 Call Police Emergency (100)",
+    dials: [
+      { name: "Police Emergency", number: "100", desc: "National police response", badge: "100" },
+      { name: "National Emergency Number", number: "112", desc: "All-in-one emergency helpline", badge: "112" },
+      { name: "Women Helpline (National)", number: "1091", desc: "24/7 National Commission for Women", badge: "1091" },
+      { name: "Childline Emergency", number: "1098", desc: "24/7 crisis support for youth", badge: "1098" }
+    ]
+  },
+  UK: {
+    label: "United Kingdom",
+    policeNumber: "999",
+    autoDialText: "Directly calls 999 when SOS countdown ends",
+    policeBtnText: "🚨 Call Emergency Services (999)",
+    dials: [
+      { name: "Emergency Services (Police/Ambulance)", number: "999", desc: "Urgent emergency response", badge: "999" },
+      { name: "Non-Emergency Police", number: "101", desc: "Non-urgent crime reporting", badge: "101" },
+      { name: "NHS Health Urgent Helpline", number: "111", desc: "Urgent medical advice", badge: "111" },
+      { name: "National Domestic Abuse Helpline", number: "0808 2000 247", desc: "Free 24-hour national helpline", badge: "24/7" }
+    ]
+  }
+};
+
+window.changeEmergencyRegion = function(regionCode) {
+  if (!EMERGENCY_REGIONS[regionCode]) regionCode = 'US_CA';
+  if (state.profile) {
+    state.profile.region = regionCode;
+    localStorage.setItem('sentinel_profile', JSON.stringify(state.profile));
+  }
+  updateEmergencyDials(regionCode);
+  playSound('click');
+  showToast(`Emergency dials updated to ${EMERGENCY_REGIONS[regionCode].label}`);
+};
+
+function updateEmergencyDials(regionCode) {
+  const reg = EMERGENCY_REGIONS[regionCode] || EMERGENCY_REGIONS.US_CA;
+  state.policeNumber = reg.policeNumber;
+
+  const autoSub = document.getElementById('autoDialSubtext');
+  if (autoSub) autoSub.textContent = reg.autoDialText;
+
+  const callPoliceBtn = document.getElementById('btnCallPoliceText');
+  if (callPoliceBtn) callPoliceBtn.textContent = reg.policeBtnText;
+
+  const container = document.getElementById('emergencyNumbersList');
+  if (!container) return;
+
+  container.innerHTML = reg.dials.map(d => `
+    <div class="emergency-dial-item">
+      <div class="emergency-dial-left">
+        <div class="emergency-dial-name">${d.name}</div>
+        <div class="emergency-dial-desc">${d.desc}</div>
+      </div>
+      <a href="tel:${d.number.replace(/[^\d+]/g, '')}" class="emergency-dial-btn" onclick="playSound('click')">
+        <span>${d.badge}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 22 16.92z"/></svg>
+      </a>
+    </div>
+  `).join('');
+}
+
 const DEFAULT_PROFILE = {
-  name: "Priya Nair",
+  name: "Jaskaran Singh",
   phone: "+1 780-489-2413",
-  avatar: "PN",
+  avatar: "JS",
   status: "Protected",
   safeWord: "Is the kettle on?",
   sosNumber: "7804892413",
+  region: "US_CA",
   settings: {
     autoRecordSOS: true,
     volumeTrigger: true,
@@ -186,9 +303,9 @@ const DEFAULT_PROFILE = {
     communityPosts: "Anonymous"
   },
   emergencyContacts: {
-    police: "100",
-    womenHelpline: "1091",
-    emergency: "112"
+    police: "911",
+    womenHelpline: "988",
+    emergency: "911"
   }
 };
 
@@ -198,11 +315,14 @@ async function fetchProfile() {
   if (saved) {
     try {
       const parsed = JSON.parse(saved);
-      if (parsed && parsed.name) {
+      // Migrate if legacy profile or Priya Nair
+      if (parsed && parsed.name && parsed.name !== "Priya Nair") {
         state.profile = parsed;
         if (parsed.sosNumber) state.userAlertNumber = parsed.sosNumber;
         else if (parsed.phone) state.userAlertNumber = parsed.phone.replace(/[^\d]/g, '');
-        renderProfile();
+      } else {
+        state.profile = { ...DEFAULT_PROFILE };
+        localStorage.setItem('sentinel_profile', JSON.stringify(DEFAULT_PROFILE));
       }
     } catch (e) {
       console.warn('Failed to parse saved profile from localStorage', e);
@@ -214,7 +334,7 @@ async function fetchProfile() {
     const res = await fetch('/api/profile');
     if (res.ok) {
       const data = await res.json();
-      if (data && data.name) {
+      if (data && data.name && data.name !== "Priya Nair") {
         state.profile = data;
         localStorage.setItem('sentinel_profile', JSON.stringify(data));
       }
@@ -223,7 +343,7 @@ async function fetchProfile() {
     console.warn('Backend profile unreachable, using localStorage or default profile', err);
   }
 
-  if (!state.profile) {
+  if (!state.profile || state.profile.name === "Priya Nair") {
     state.profile = { ...DEFAULT_PROFILE };
     localStorage.setItem('sentinel_profile', JSON.stringify(DEFAULT_PROFILE));
   }
@@ -233,6 +353,12 @@ async function fetchProfile() {
   } else if (state.profile.phone) {
     state.userAlertNumber = state.profile.phone.replace(/[^\d]/g, '');
   }
+
+  // Set initial region
+  const activeRegion = state.profile.region || 'US_CA';
+  const regionSelect = document.getElementById('emergencyRegionSelect');
+  if (regionSelect) regionSelect.value = activeRegion;
+  updateEmergencyDials(activeRegion);
 
   renderProfile();
 }
@@ -328,72 +454,76 @@ async function fetchGuardians() {
   renderGuardians();
 }
 
-const DEFAULT_REPORTS = [
-  {
-    id: "rep-1",
-    type: "followed",
-    title: "Someone reported being followed",
-    location: "Church Street underpass",
-    timeAgo: "40 min ago",
-    confirms: 6,
-    lat: 12.9745,
-    lng: 77.6080,
-    notes: "Individual matching description loitering by eastern stairs.",
-    verified: true
-  },
-  {
-    id: "rep-2",
-    type: "lighting",
-    title: "Streetlight out for 3rd night",
-    location: "Behind City Market",
-    timeAgo: "reported by 3 people",
-    confirms: 3,
-    lat: 12.9660,
-    lng: 77.5780,
-    notes: "Pitch dark corner near lane 4 intersection.",
-    verified: false
-  },
-  {
-    id: "rep-3",
-    type: "safe_zone",
-    title: "24/7 Police Assistance Booth",
-    location: "MG Road & Brigade Rd Junction",
-    timeAgo: "Verified Safe Zone",
-    confirms: 54,
-    lat: 12.9750,
-    lng: 77.6070,
-    notes: "Constant patrol, CCTV coverage, brightly illuminated.",
-    verified: true
-  },
-  {
-    id: "rep-4",
-    type: "lighting",
-    title: "Dark pathway towards Metro Gate 3",
-    location: "Brigade Road, near Metro exit 3",
-    timeAgo: "2 hours ago",
-    confirms: 8,
-    lat: 12.9732,
-    lng: 77.6078,
-    notes: "Broken lamp pole, poor visibility after 8:30 PM.",
-    verified: true
-  },
-  {
-    id: "rep-5",
-    type: "safe_zone",
-    title: "Apollo Pharmacy 24/7 (Safe Refuge)",
-    location: "Residency Road corner",
-    timeAgo: "Verified Safe Zone",
-    confirms: 31,
-    lat: 12.9712,
-    lng: 77.6025,
-    notes: "Security guard present, emergency shelter partner.",
-    verified: true
-  }
-];
+function getIncidentsForLocation(centerLat, centerLng) {
+  return [
+    {
+      id: "rep-1",
+      type: "followed",
+      title: "Someone reported being followed",
+      location: "Near Transit Pedestrian Walkway",
+      timeAgo: "40 min ago",
+      confirms: 6,
+      lat: Number((centerLat + 0.0035).toFixed(5)),
+      lng: Number((centerLng + 0.0042).toFixed(5)),
+      notes: "Individual matching description loitering by eastern stairs.",
+      verified: true
+    },
+    {
+      id: "rep-2",
+      type: "lighting",
+      title: "Streetlight out for 3rd night",
+      location: "Behind Central Market lane",
+      timeAgo: "reported by 3 people",
+      confirms: 3,
+      lat: Number((centerLat - 0.0042).toFixed(5)),
+      lng: Number((centerLng - 0.0031).toFixed(5)),
+      notes: "Pitch dark corner near lane intersection.",
+      verified: false
+    },
+    {
+      id: "rep-3",
+      type: "safe_zone",
+      title: "24/7 Emergency Assistance Station",
+      location: "Main Ave & 102 St Junction",
+      timeAgo: "Verified Safe Zone",
+      confirms: 54,
+      lat: Number((centerLat + 0.0018).toFixed(5)),
+      lng: Number((centerLng - 0.0028).toFixed(5)),
+      notes: "Constant patrol, CCTV coverage, brightly illuminated.",
+      verified: true
+    },
+    {
+      id: "rep-4",
+      type: "lighting",
+      title: "Dark pathway towards Transit Gate 3",
+      location: "Parkway trail near exit 3",
+      timeAgo: "2 hours ago",
+      confirms: 8,
+      lat: Number((centerLat - 0.0025).toFixed(5)),
+      lng: Number((centerLng + 0.0038).toFixed(5)),
+      notes: "Broken lamp pole, poor visibility after 8:30 PM.",
+      verified: true
+    },
+    {
+      id: "rep-5",
+      type: "safe_zone",
+      title: "24/7 Safe Refuge Pharmacy",
+      location: "Grand Blvd corner",
+      timeAgo: "Verified Safe Zone",
+      confirms: 31,
+      lat: Number((centerLat + 0.0052).toFixed(5)),
+      lng: Number((centerLng - 0.0012).toFixed(5)),
+      notes: "Security guard present, emergency shelter partner.",
+      verified: true
+    }
+  ];
+}
+
+const DEFAULT_REPORTS = getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]);
 
 const DEFAULT_TRIP = {
   destinationName: "Rekha's home",
-  originName: "MG Road Metro",
+  originName: "Transit Station",
   remainingMinutes: 12,
   autoCheckinMinutes: 3,
   status: "active",
@@ -408,7 +538,14 @@ async function fetchReports(type = 'all') {
     try {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        state.reports = parsed;
+        // Check if old legacy Bangalore coordinates
+        const isLegacyCoords = parsed.some(r => r.lat && r.lat < 20 && r.lng && r.lng > 70);
+        if (isLegacyCoords && (userLiveCoords[0] > 20 || userHasLiveGps)) {
+          state.reports = getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]);
+          localStorage.setItem('sentinel_reports', JSON.stringify(state.reports));
+        } else {
+          state.reports = parsed;
+        }
         loaded = true;
       }
     } catch (e) {
@@ -433,8 +570,8 @@ async function fetchReports(type = 'all') {
   }
 
   if (!loaded || !state.reports || state.reports.length === 0) {
-    state.reports = [...DEFAULT_REPORTS];
-    localStorage.setItem('sentinel_reports', JSON.stringify(DEFAULT_REPORTS));
+    state.reports = getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]);
+    localStorage.setItem('sentinel_reports', JSON.stringify(state.reports));
   }
 
   // Filter if specific type requested
@@ -750,14 +887,20 @@ function switchScreen(screenId) {
 
   // Refresh screens
   if (screenId === 's03') {
-    setTimeout(renderTripMap, 150);
+    setTimeout(() => {
+      renderTripMap();
+      if (leafletTripMap) leafletTripMap.invalidateSize();
+    }, 150);
     renderWatchersRow();
   } else if (screenId === 's04') {
     renderGuardians();
   } else if (screenId === 's05') {
     renderSosGuardiansList();
   } else if (screenId === 's06') {
-    setTimeout(() => renderCommunityMap(), 150);
+    setTimeout(() => {
+      renderCommunityMap();
+      if (leafletCommunityMap) leafletCommunityMap.invalidateSize();
+    }, 150);
   } else if (screenId === 's08') {
     renderProfile();
   }
@@ -1137,7 +1280,8 @@ function answerCall() {
   // Native Web Speech Synthesis - speaks aloud through speakers!
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance("Hey Priya! Where are you right now? I'm waiting in the car near the main gate. Stay on the line with me until you reach safely.");
+    const userName = state.profile && state.profile.name ? state.profile.name.split(' ')[0] : 'Jaskaran';
+    const utterance = new SpeechSynthesisUtterance(`Hey ${userName}! Where are you right now? I'm waiting in the car near the main gate. Stay on the line with me until you reach safely.`);
     utterance.rate = 0.95;
     utterance.pitch = 1.0;
     window.speechSynthesis.speak(utterance);
@@ -1196,10 +1340,18 @@ function setupFakeCall() {
 }
 
 // ==========================================
-// 7. GOOGLE MAPS ENGINE & THEMED CANVAS FALLBACK
+// 7. REAL INTERACTIVE MAP ENGINE (LEAFLET + GOOGLE MAPS + FALLBACK)
 // ==========================================
 function initGoogleMapsEngine() {
-  // If user provided a real Google Maps Key, dynamically inject script
+  // 1. If Leaflet is loaded (via unpkg CDN), initialize real interactive maps immediately
+  if (typeof L !== 'undefined') {
+    console.log('[Sentinel] Leaflet 1.9.4 interactive map engine active');
+    renderTripMap();
+    renderCommunityMap();
+    return;
+  }
+
+  // 2. If user provided a real Google Maps Key, dynamically inject script
   if (state.googleMapsKey && state.googleMapsKey !== '') {
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${state.googleMapsKey}&callback=onGoogleMapsReady&libraries=places`;
@@ -1217,20 +1369,18 @@ function initGoogleMapsEngine() {
     };
     document.head.appendChild(script);
   } else {
-    // Zero-config interactive vector canvas map fallback
     initVectorMapFallback();
   }
 }
 
 function initVectorMapFallback() {
   state.googleMapsLoaded = false;
-  console.log('Rendering interactive themed vector safety maps');
+  console.log('Rendering interactive themed safety maps');
   renderTripMap();
   renderCommunityMap();
 }
 
 function getMapThemeStyles(theme) {
-  // Google Maps JSON styling definitions per theme
   switch (theme) {
     case 'sunset':
       return [
@@ -1275,13 +1425,22 @@ function getMapThemeStyles(theme) {
 }
 
 function applyMapTheme(theme) {
+  const isLight = theme === 'light';
+  const tileUrl = isLight 
+    ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+    : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+  if (leafletCommunityMap && leafletCommunityMap._tileLayer) {
+    leafletCommunityMap._tileLayer.setUrl(tileUrl);
+  }
+  if (leafletTripMap && leafletTripMap._tileLayer) {
+    leafletTripMap._tileLayer.setUrl(tileUrl);
+  }
+
   if (state.googleMapsLoaded) {
     const styles = getMapThemeStyles(theme);
     if (tripMap) tripMap.setOptions({ styles });
     if (communityMap) communityMap.setOptions({ styles });
-  } else {
-    renderTripMap();
-    renderCommunityMap();
   }
 }
 
@@ -1290,8 +1449,116 @@ function renderTripMap() {
   const container = document.getElementById('tripMapContainer');
   if (!container) return;
 
+  // 1. Real Interactive Leaflet Map
+  if (typeof L !== 'undefined') {
+    const center = userLiveCoords;
+    const origin = [Number((center[0] - 0.004).toFixed(5)), Number((center[1] - 0.005).toFixed(5))];
+    const destination = [Number((center[0] + 0.0045).toFixed(5)), Number((center[1] + 0.004).toFixed(5))];
+    const userCurrent = [Number((center[0] + 0.0008).toFixed(5)), Number((center[1] + 0.0006).toFixed(5))];
+
+    if (!leafletTripMap) {
+      container.innerHTML = '';
+      leafletTripMap = L.map('tripMapContainer', {
+        center: center,
+        zoom: 15,
+        zoomControl: true,
+        attributionControl: false
+      });
+
+      const isLight = state.activeTheme === 'light';
+      const tileUrl = isLight 
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+      leafletTripMap._tileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(leafletTripMap);
+
+      // Route coordinates
+      const routePoints = [
+        origin,
+        [Number((center[0] - 0.002).toFixed(5)), Number((center[1] - 0.003).toFixed(5))],
+        userCurrent,
+        [Number((center[0] + 0.0025).toFixed(5)), Number((center[1] + 0.0018).toFixed(5))],
+        destination
+      ];
+
+      // Route glow line
+      L.polyline(routePoints, {
+        color: state.activeTheme === 'sunset' ? '#F5A64E' : '#38BDF8',
+        weight: 6,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(leafletTripMap);
+
+      // Route dashed center line
+      L.polyline(routePoints, {
+        color: '#FFFFFF',
+        weight: 2,
+        opacity: 0.85,
+        dashArray: '6, 8',
+        lineCap: 'round'
+      }).addTo(leafletTripMap);
+
+      // Origin Pin
+      const originIcon = L.divIcon({
+        className: 'leaflet-incident-pin-icon',
+        html: `
+          <div style="width:24px;height:24px;border-radius:50%;background:#64748B;border:2px solid #FFFFFF;display:flex;align-items:center;justify-content:center;font-size:11px;color:#FFF;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.5);">
+            A
+          </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      L.marker(origin, { icon: originIcon }).addTo(leafletTripMap)
+        .bindPopup('<strong style="color:#64748B;">Origin</strong><br><span>Transit Station Departure</span>');
+
+      // Destination Pin
+      const destIcon = L.divIcon({
+        className: 'leaflet-incident-pin-icon',
+        html: `
+          <div style="width:28px;height:28px;border-radius:50%;background:#10B981;border:2px solid #FFFFFF;display:flex;align-items:center;justify-content:center;font-size:13px;color:#FFF;box-shadow:0 0 12px #10B981;">
+            🏁
+          </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      L.marker(destination, { icon: destIcon }).addTo(leafletTripMap)
+        .bindPopup("<strong style=\"color:#10B981;\">Destination</strong><br><span>Rekha's home (Safe Zone)</span>");
+
+      // Live User Pin
+      const initials = (state.profile && state.profile.avatar) ? state.profile.avatar : 'JS';
+      const userName = (state.profile && state.profile.name) ? state.profile.name : 'Jaskaran Singh';
+      const userTripIcon = L.divIcon({
+        className: 'leaflet-user-pin-icon',
+        html: `
+          <div style="position:relative;width:32px;height:32px;">
+            <div style="position:absolute;width:32px;height:32px;border-radius:50%;background:rgba(239,68,68,0.35);animation:mapPulse 2s infinite;"></div>
+            <div style="position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:50%;background:#EF4444;border:2px solid #FFFFFF;box-shadow:0 0 12px #EF4444;display:flex;align-items:center;justify-content:center;font-size:9px;color:#FFF;font-weight:800;">
+              ${initials}
+            </div>
+          </div>
+        `,
+        iconSize: [32, 32],
+        iconAnchor: [16, 16]
+      });
+      L.marker(userCurrent, { icon: userTripIcon }).addTo(leafletTripMap)
+        .bindPopup(`<strong style="color:#EF4444;">${userName} (Live)</strong><br><span style="font-size:0.72rem;color:#86EFAC;">GPS Accuracy: ±3m · Live Tracking</span>`);
+
+      leafletTripMap.fitBounds(L.latLngBounds(routePoints), { padding: [30, 30] });
+    } else {
+      leafletTripMap.invalidateSize();
+    }
+    return;
+  }
+
+  // 2. Google Maps fallback
   if (state.googleMapsLoaded && window.google) {
-    const center = { lat: 12.9735, lng: 77.6070 };
+    const center = { lat: userLiveCoords[0], lng: userLiveCoords[1] };
     tripMap = new google.maps.Map(container, {
       center,
       zoom: 15,
@@ -1299,90 +1566,39 @@ function renderTripMap() {
       zoomControl: true,
       styles: getMapThemeStyles(state.activeTheme)
     });
-
-    // Draw route polyline
-    const routeCoords = [
-      { lat: 12.9756, lng: 77.6066 },
-      { lat: 12.9745, lng: 77.6080 },
-      { lat: 12.9732, lng: 77.6078 },
-      { lat: 12.9712, lng: 77.6025 }
-    ];
-    new google.maps.Polyline({
-      path: routeCoords,
-      geodesic: true,
-      strokeColor: state.activeTheme === 'sunset' ? '#F5A64E' : '#38BDF8',
-      strokeOpacity: 0.9,
-      strokeWeight: 4,
-      map: tripMap
-    });
-
-    // User live pin
-    new google.maps.Marker({
-      position: routeCoords[1],
-      map: tripMap,
-      title: "Priya (Live)",
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 8,
-        fillColor: '#EF4444',
-        fillOpacity: 1,
-        strokeColor: '#FFFFFF',
-        strokeWeight: 2
-      }
-    });
-
-    // Destination pin
-    new google.maps.Marker({
-      position: routeCoords[routeCoords.length - 1],
-      map: tripMap,
-      title: "Rekha's home"
-    });
-  } else {
-    // Rich SVG Vector Map for instant interactive demo
-    const colorPrimary = state.activeTheme === 'sunset' ? '#F5A64E' : '#38BDF8';
-    const colorBg = state.activeTheme === 'light' ? '#E2E8F0' : '#141A26';
-    const colorRoad = state.activeTheme === 'light' ? '#FFFFFF' : '#212A3E';
-
-    container.innerHTML = `
-      <div style="width:100%;height:100%;background:${colorBg};position:relative;overflow:hidden;">
-        <svg width="100%" height="100%" viewBox="0 0 320 280" preserveAspectRatio="none">
-          <!-- Street Grids -->
-          <rect width="320" height="280" fill="${colorBg}"/>
-          <line x1="0" y1="70" x2="320" y2="70" stroke="${colorRoad}" stroke-width="18"/>
-          <line x1="0" y1="180" x2="320" y2="180" stroke="${colorRoad}" stroke-width="14"/>
-          <line x1="80" y1="0" x2="80" y2="280" stroke="${colorRoad}" stroke-width="16"/>
-          <line x1="220" y1="0" x2="220" y2="280" stroke="${colorRoad}" stroke-width="18"/>
-          
-          <!-- Cross streets & avenues -->
-          <path d="M40 280 L 120 180 L 180 70 L 260 0" stroke="${colorRoad}" stroke-width="10" fill="none"/>
-          
-          <!-- Live Active Route Polyline -->
-          <path d="M70 240 Q 80 180 140 180 T 220 70" fill="none" stroke="${colorPrimary}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="M70 240 Q 80 180 140 180 T 220 70" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="6 6"/>
-          
-          <!-- Destination Pin -->
-          <circle cx="220" cy="70" r="9" fill="#10B981"/>
-          <circle cx="220" cy="70" r="4" fill="#FFFFFF"/>
-          
-          <!-- Origin Pin -->
-          <circle cx="70" cy="240" r="7" fill="#64748B"/>
-          
-          <!-- Live User Tracker Pin with Pulsing Beacon -->
-          <circle cx="140" cy="180" r="18" fill="rgba(239, 68, 68, 0.3)">
-            <animate attributeName="r" values="12;24;12" dur="2s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2s" repeatCount="indefinite"/>
-          </circle>
-          <circle cx="140" cy="180" r="8" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
-        </svg>
-        <div style="position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.65);padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;color:#FFF;backdrop-filter:blur(6px);">
-          📍 MG Road ➔ Brigade Gateway
-        </div>
-        <div style="position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.65);padding:4px 8px;border-radius:8px;font-size:0.65rem;color:#86EFAC;">
-          GPS Accuracy: ±3m · Live Tracking
-        </div>
-      </div>
-    `;
+    return;
   }
+
+  // 3. Vector SVG fallback
+  const colorPrimary = state.activeTheme === 'sunset' ? '#F5A64E' : '#38BDF8';
+  const colorBg = state.activeTheme === 'light' ? '#E2E8F0' : '#141A26';
+  const colorRoad = state.activeTheme === 'light' ? '#FFFFFF' : '#212A3E';
+
+  container.innerHTML = `
+    <div style="width:100%;height:100%;background:${colorBg};position:relative;overflow:hidden;">
+      <svg width="100%" height="100%" viewBox="0 0 320 280" preserveAspectRatio="none">
+        <rect width="320" height="280" fill="${colorBg}"/>
+        <line x1="0" y1="70" x2="320" y2="70" stroke="${colorRoad}" stroke-width="18"/>
+        <line x1="0" y1="180" x2="320" y2="180" stroke="${colorRoad}" stroke-width="14"/>
+        <line x1="80" y1="0" x2="80" y2="280" stroke="${colorRoad}" stroke-width="16"/>
+        <line x1="220" y1="0" x2="220" y2="280" stroke="${colorRoad}" stroke-width="18"/>
+        <path d="M70 240 Q 80 180 140 180 T 220 70" fill="none" stroke="${colorPrimary}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="220" cy="70" r="9" fill="#10B981"/>
+        <circle cx="70" cy="240" r="7" fill="#64748B"/>
+        <circle cx="140" cy="180" r="18" fill="rgba(239, 68, 68, 0.3)">
+          <animate attributeName="r" values="12;24;12" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.6;0.1;0.6" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="140" cy="180" r="8" fill="#EF4444" stroke="#FFFFFF" stroke-width="2"/>
+      </svg>
+      <div style="position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.65);padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;color:#FFF;backdrop-filter:blur(6px);">
+        📍 Live GPS Route · Protected by Sentinel
+      </div>
+      <div style="position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.65);padding:4px 8px;border-radius:8px;font-size:0.65rem;color:#86EFAC;">
+        GPS Accuracy: ±3m · Live Tracking
+      </div>
+    </div>
+  `;
 }
 
 // Render Screen 06 Community Map
@@ -1390,10 +1606,62 @@ function renderCommunityMap(reportsToRender) {
   const container = document.getElementById('communityMapContainer');
   if (!container) return;
 
-  const reps = Array.isArray(reportsToRender) ? reportsToRender : (state.reports && state.reports.length > 0 ? state.reports : DEFAULT_REPORTS);
+  const reps = Array.isArray(reportsToRender) && reportsToRender.length > 0 
+    ? reportsToRender 
+    : (state.reports && state.reports.length > 0 ? state.reports : getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]));
 
+  // 1. Real Interactive Leaflet Map
+  if (typeof L !== 'undefined') {
+    const center = userLiveCoords;
+
+    if (!leafletCommunityMap) {
+      container.innerHTML = '';
+      leafletCommunityMap = L.map('communityMapContainer', {
+        center: center,
+        zoom: 14,
+        zoomControl: true,
+        attributionControl: false
+      });
+
+      const isLight = state.activeTheme === 'light';
+      const tileUrl = isLight 
+        ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+        : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+
+      leafletCommunityMap._tileLayer = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(leafletCommunityMap);
+
+      // User live marker with pulsing aura
+      const userPinIcon = L.divIcon({
+        className: 'leaflet-user-pin-icon',
+        html: `
+          <div style="position:relative;width:28px;height:28px;">
+            <div style="position:absolute;width:28px;height:28px;border-radius:50%;background:rgba(56,189,248,0.35);animation:mapPulse 2s infinite;"></div>
+            <div style="position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:50%;background:#38BDF8;border:2px solid #FFFFFF;box-shadow:0 0 10px #38BDF8;"></div>
+          </div>
+        `,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+
+      leafletUserMarker = L.marker(center, { icon: userPinIcon }).addTo(leafletCommunityMap);
+      leafletUserMarker.bindPopup(`
+        <div style="font-size:0.82rem;font-weight:700;color:#38BDF8;margin-bottom:2px;">📍 You (Current Location)</div>
+        <div style="font-size:0.72rem;color:#94A3B8;">GPS Accuracy: ±5m · Protected by Sentinel</div>
+      `);
+    } else {
+      leafletCommunityMap.invalidateSize();
+    }
+
+    updateLeafletCommunityMarkers(reps);
+    return;
+  }
+
+  // 2. Google Maps fallback
   if (state.googleMapsLoaded && window.google) {
-    const center = { lat: 12.9735, lng: 77.6070 };
+    const center = { lat: userLiveCoords[0], lng: userLiveCoords[1] };
     communityMap = new google.maps.Map(container, {
       center,
       zoom: 15,
@@ -1402,64 +1670,115 @@ function renderCommunityMap(reportsToRender) {
       styles: getMapThemeStyles(state.activeTheme)
     });
     updateMapMarkers(reps);
-  } else {
-    // Vector Community Safety Map with Pins
-    const colorBg = state.activeTheme === 'light' ? '#E2E8F0' : '#111622';
-    const colorRoad = state.activeTheme === 'light' ? '#FFFFFF' : '#1C2433';
+    return;
+  }
 
-    let pinsSvg = '';
-    reps.forEach((rep, idx) => {
-      let pinColor = '#EF4444'; // followed
-      if (rep.type === 'lighting') pinColor = '#F59E0B';
-      if (rep.type === 'safe_zone') pinColor = '#10B981';
+  // 3. Vector SVG fallback
+  const colorBg = state.activeTheme === 'light' ? '#E2E8F0' : '#111622';
+  const colorRoad = state.activeTheme === 'light' ? '#FFFFFF' : '#1C2433';
 
-      // Spread pins visually across map
-      const x = 50 + (idx * 60) % 240;
-      const y = 55 + (idx * 48) % 150;
+  let pinsSvg = '';
+  reps.forEach((rep, idx) => {
+    let pinColor = '#EF4444';
+    if (rep.type === 'lighting') pinColor = '#F59E0B';
+    if (rep.type === 'safe_zone') pinColor = '#10B981';
 
-      pinsSvg += `
-        <g style="cursor:pointer;" onclick="selectMapPin('${rep.id}', '${rep.title.replace(/'/g, "\\'")}', '${rep.location.replace(/'/g, "\\'")}')">
-          <circle cx="${x}" cy="${y}" r="14" fill="${pinColor}" opacity="0.28">
-            <animate attributeName="r" values="10;18;10" dur="2.4s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="0.35;0.1;0.35" dur="2.4s" repeatCount="indefinite"/>
-          </circle>
-          <circle cx="${x}" cy="${y}" r="7.5" fill="${pinColor}" stroke="#FFFFFF" stroke-width="2"/>
-        </g>
-      `;
+    const x = 50 + (idx * 60) % 240;
+    const y = 55 + (idx * 48) % 150;
+
+    pinsSvg += `
+      <g style="cursor:pointer;" onclick="selectMapPin('${rep.id}', '${rep.title.replace(/'/g, "\\'")}', '${rep.location.replace(/'/g, "\\'")}')">
+        <circle cx="${x}" cy="${y}" r="14" fill="${pinColor}" opacity="0.28">
+          <animate attributeName="r" values="10;18;10" dur="2.4s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.35;0.1;0.35" dur="2.4s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="${x}" cy="${y}" r="7.5" fill="${pinColor}" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+    `;
+  });
+
+  container.innerHTML = `
+    <div style="width:100%;height:100%;background:${colorBg};position:relative;overflow:hidden;border-radius:inherit;">
+      <svg width="100%" height="100%" viewBox="0 0 320 250" preserveAspectRatio="none">
+        <rect width="320" height="250" fill="${colorBg}"/>
+        <line x1="0" y1="65" x2="320" y2="65" stroke="${colorRoad}" stroke-width="14"/>
+        <line x1="0" y1="165" x2="320" y2="165" stroke="${colorRoad}" stroke-width="16"/>
+        <line x1="90" y1="0" x2="90" y2="250" stroke="${colorRoad}" stroke-width="14"/>
+        <line x1="210" y1="0" x2="210" y2="250" stroke="${colorRoad}" stroke-width="18"/>
+        <circle cx="150" cy="115" r="18" fill="rgba(56, 189, 248, 0.25)">
+          <animate attributeName="r" values="12;26;12" dur="2s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.5;0.05;0.5" dur="2s" repeatCount="indefinite"/>
+        </circle>
+        <circle cx="150" cy="115" r="7" fill="#38BDF8" stroke="#FFFFFF" stroke-width="2"/>
+        ${pinsSvg}
+      </svg>
+      <div style="position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.72);padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;color:#FFF;backdrop-filter:blur(6px);box-shadow:0 4px 12px rgba(0,0,0,0.4);">
+        ● ${reps.length} safety incidents nearby
+      </div>
+      <div style="position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.72);padding:4px 9px;border-radius:8px;font-size:0.65rem;color:#86EFAC;backdrop-filter:blur(6px);">
+        ⚡ Live Radar · 1.2 km radius
+      </div>
+    </div>
+  `;
+}
+
+function updateLeafletCommunityMarkers(reportsToRender) {
+  if (!leafletCommunityMap || typeof L === 'undefined') return;
+
+  // Clear existing markers
+  leafletCommunityMarkers.forEach(m => leafletCommunityMap.removeLayer(m));
+  leafletCommunityMarkers = [];
+
+  const reps = Array.isArray(reportsToRender) && reportsToRender.length > 0 
+    ? reportsToRender 
+    : (state.reports && state.reports.length > 0 ? state.reports : getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]));
+
+  reps.forEach((rep) => {
+    let pinColor = '#EF4444';
+    let pinBadge = '⚠️';
+    if (rep.type === 'lighting') {
+      pinColor = '#F59E0B';
+      pinBadge = '💡';
+    } else if (rep.type === 'safe_zone') {
+      pinColor = '#10B981';
+      pinBadge = '🛡️';
+    }
+
+    const icon = L.divIcon({
+      className: 'leaflet-incident-pin-icon',
+      html: `
+        <div style="position:relative;width:30px;height:30px;cursor:pointer;">
+          <div style="position:absolute;width:30px;height:30px;border-radius:50%;background:${pinColor};opacity:0.25;animation:mapPulse 2.4s infinite;"></div>
+          <div style="position:absolute;top:5px;left:5px;width:20px;height:20px;border-radius:50%;background:${pinColor};border:2px solid #FFFFFF;box-shadow:0 3px 10px rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-size:10px;color:#FFF;">
+            ${pinBadge}
+          </div>
+        </div>
+      `,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15]
     });
 
-    container.innerHTML = `
-      <div style="width:100%;height:100%;background:${colorBg};position:relative;overflow:hidden;border-radius:inherit;">
-        <svg width="100%" height="100%" viewBox="0 0 320 250" preserveAspectRatio="none">
-          <rect width="320" height="250" fill="${colorBg}"/>
-          <line x1="0" y1="65" x2="320" y2="65" stroke="${colorRoad}" stroke-width="14"/>
-          <line x1="0" y1="165" x2="320" y2="165" stroke="${colorRoad}" stroke-width="16"/>
-          <line x1="90" y1="0" x2="90" y2="250" stroke="${colorRoad}" stroke-width="14"/>
-          <line x1="210" y1="0" x2="210" y2="250" stroke="${colorRoad}" stroke-width="18"/>
-          
-          <!-- Radar concentric rings for scan effect -->
-          <circle cx="150" cy="115" r="45" fill="none" stroke="rgba(56, 189, 248, 0.15)" stroke-width="1" stroke-dasharray="4 4"/>
-          <circle cx="150" cy="115" r="85" fill="none" stroke="rgba(56, 189, 248, 0.1)" stroke-width="1" stroke-dasharray="4 4"/>
-
-          <!-- User Location Beacon -->
-          <circle cx="150" cy="115" r="18" fill="rgba(56, 189, 248, 0.25)">
-            <animate attributeName="r" values="12;26;12" dur="2s" repeatCount="indefinite"/>
-            <animate attributeName="opacity" values="0.5;0.05;0.5" dur="2s" repeatCount="indefinite"/>
-          </circle>
-          <circle cx="150" cy="115" r="7" fill="#38BDF8" stroke="#FFFFFF" stroke-width="2"/>
-          
-          <!-- Incident & Safety Pins -->
-          ${pinsSvg}
-        </svg>
-        <div style="position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.72);padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;color:#FFF;backdrop-filter:blur(6px);box-shadow:0 4px 12px rgba(0,0,0,0.4);">
-          ● ${reps.length} safety incidents nearby
+    const marker = L.marker([rep.lat, rep.lng], { icon }).addTo(leafletCommunityMap);
+    
+    const popupContent = `
+      <div style="min-width:180px;font-family:sans-serif;">
+        <div style="font-size:0.75rem;text-transform:uppercase;font-weight:800;color:${pinColor};margin-bottom:4px;">
+          ${rep.type.replace('_', ' ')}
         </div>
-        <div style="position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.72);padding:4px 9px;border-radius:8px;font-size:0.65rem;color:#86EFAC;backdrop-filter:blur(6px);">
-          ⚡ Live Radar · 1.2 km radius
+        <div style="font-size:0.85rem;font-weight:700;color:#FFF;margin-bottom:4px;line-height:1.3;">
+          ${escapeHtml(rep.title)}
         </div>
+        <div style="font-size:0.72rem;color:#94A3B8;margin-bottom:8px;">
+          📍 ${escapeHtml(rep.location)} · ${rep.timeAgo}
+        </div>
+        <button onclick="selectMapPin('${rep.id}', '${escapeHtml(rep.title).replace(/'/g, "\\'")}', '${escapeHtml(rep.location).replace(/'/g, "\\'")}')" style="width:100%;padding:6px 10px;background:${pinColor};border:none;border-radius:8px;color:#FFF;font-size:0.75rem;font-weight:700;cursor:pointer;">
+          View in Reports List
+        </button>
       </div>
     `;
-  }
+    marker.bindPopup(popupContent);
+    leafletCommunityMarkers.push(marker);
+  });
 }
 
 window.selectMapPin = function(repId, title, location) {
@@ -1474,11 +1793,16 @@ window.selectMapPin = function(repId, title, location) {
 };
 
 function updateMapMarkers(reportsToRender) {
+  // Update Leaflet markers if Leaflet is active
+  if (typeof L !== 'undefined') {
+    updateLeafletCommunityMarkers(reportsToRender);
+    return;
+  }
+
   if (!state.googleMapsLoaded || !communityMap || !window.google) return;
   
   const reps = Array.isArray(reportsToRender) ? reportsToRender : (state.reports && state.reports.length > 0 ? state.reports : DEFAULT_REPORTS);
 
-  // Clear old markers
   communityMarkers.forEach(m => m.setMap(null));
   communityMarkers = [];
 
