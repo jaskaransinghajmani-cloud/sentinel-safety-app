@@ -4,24 +4,33 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 console.log('===============================================================');
-console.log('       SENTINEL ANDROID APK BUILDER & DOWNLOADER');
+console.log('       SENTINEL ANDROID SIGNED APK BUILDER & DOWNLOADER');
 console.log('===============================================================');
 console.log('1. Connecting to Cloud Android Package Builder...');
 
 const payload = JSON.stringify({
   packageId: 'com.sentinel.safetyapp',
-  host: 'https://chatty-taxis-dress.loca.lt',
+  host: 'https://jaskaransinghajmani-cloud.github.io/sentinel-safety-app/',
   name: 'Sentinel Safety',
   launcherName: 'Sentinel',
   themeColor: '#E53935',
   navigationColor: '#080B11',
   backgroundColor: '#080B11',
-  startUrl: '/',
+  startUrl: '/sentinel-safety-app/',
   webManifestUrl: 'https://raw.githubusercontent.com/jaskaransinghajmani-cloud/sentinel-safety-app/main/public/manifest.json',
   iconUrl: 'https://raw.githubusercontent.com/jaskaransinghajmani-cloud/sentinel-safety-app/main/public/assets/icon-512.png',
   maskableIconUrl: 'https://raw.githubusercontent.com/jaskaransinghajmani-cloud/sentinel-safety-app/main/public/assets/icon-512.png',
   splashScreenFadeOutDuration: 300,
-  signingMode: 'none',
+  signingMode: 'new',
+  signing: {
+    alias: 'sentinel',
+    keyPassword: 'password123',
+    password: 'password123',
+    fullName: 'Sentinel Safety',
+    organization: 'Sentinel',
+    organizationalUnit: 'Security',
+    countryCode: 'IN'
+  },
   appVersion: '1.0.0.0',
   appVersionCode: 1,
   display: 'standalone',
@@ -53,7 +62,7 @@ const req = https.request('https://pwabuilder-cloudapk.azurewebsites.net/generat
     return;
   }
 
-  console.log('2. Downloading Android APK package archive...');
+  console.log('2. Downloading signed Android APK package archive...');
   const fileStream = fs.createWriteStream(zipPath);
   res.pipe(fileStream);
 
@@ -62,8 +71,7 @@ const req = https.request('https://pwabuilder-cloudapk.azurewebsites.net/generat
       const stats = fs.statSync(zipPath);
       console.log(`3. Download complete! Package size: ${(stats.size / 1024 / 1024).toFixed(2)} MB`);
 
-      // Extract using PowerShell Expand-Archive
-      console.log('4. Extracting APK files to sentinel-apk folder...');
+      console.log('4. Extracting signed APK files...');
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
       }
@@ -73,8 +81,7 @@ const req = https.request('https://pwabuilder-cloudapk.azurewebsites.net/generat
           stdio: 'inherit'
         });
         console.log('5. Extraction complete!');
-        
-        // Locate the APK file
+
         const findFiles = (dir) => {
           let results = [];
           const list = fs.readdirSync(dir);
@@ -91,24 +98,21 @@ const req = https.request('https://pwabuilder-cloudapk.azurewebsites.net/generat
         };
 
         const binaries = findFiles(outputDir);
-        const apkFile = binaries.find(f => f.endsWith('.apk'));
-        if (apkFile) {
+        // Find signed APK (prefer signed over unsigned)
+        const signedApk = binaries.find(f => f.endsWith('.apk') && !f.includes('unsigned')) || binaries.find(f => f.endsWith('.apk'));
+        if (signedApk) {
           const rootApk = path.join(__dirname, 'sentinel.apk');
-          fs.copyFileSync(apkFile, rootApk);
-          console.log(`👉 Copied to root: ${rootApk}`);
+          fs.copyFileSync(signedApk, rootApk);
+          console.log(`👉 Copied signed APK to root: ${rootApk}`);
         }
 
         console.log('===============================================================');
-        console.log('SUCCESS! ANDROID APP PACKAGES READY:');
+        console.log('SUCCESS! SIGNED ANDROID APP PACKAGES READY:');
         binaries.forEach(b => {
           const rel = path.relative(__dirname, b);
           const bStat = fs.statSync(b);
           console.log(`👉 ${rel} (${(bStat.size / 1024 / 1024).toFixed(2)} MB)`);
         });
-        console.log('===============================================================');
-        console.log('To install on your phone:');
-        console.log('1. Copy "sentinel.apk" to your Android phone (via USB, Google Drive, or WhatsApp).');
-        console.log('2. Tap "sentinel.apk" on your phone to install Sentinel!');
         console.log('===============================================================');
       } catch (extractErr) {
         console.error('Failed to extract zip:', extractErr.message);
