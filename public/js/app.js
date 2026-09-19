@@ -270,6 +270,9 @@ function updateEmergencyDials(regionCode) {
   const callPoliceBtn = document.getElementById('btnCallPoliceText');
   if (callPoliceBtn) callPoliceBtn.textContent = reg.policeBtnText;
 
+  const homePoliceTitle = document.getElementById('homePoliceBannerTitle');
+  if (homePoliceTitle) homePoliceTitle.textContent = `Call Emergency Dispatch (${reg.policeNumber})`;
+
   const container = document.getElementById('emergencyNumbersList');
   if (!container) return;
 
@@ -889,8 +892,10 @@ function switchScreen(screenId) {
   if (screenId === 's03') {
     setTimeout(() => {
       renderTripMap();
-      if (leafletTripMap) leafletTripMap.invalidateSize();
-    }, 150);
+      if (leafletTripMap) {
+        leafletTripMap.invalidateSize(true);
+      }
+    }, 100);
     renderWatchersRow();
   } else if (screenId === 's04') {
     renderGuardians();
@@ -899,8 +904,11 @@ function switchScreen(screenId) {
   } else if (screenId === 's06') {
     setTimeout(() => {
       renderCommunityMap();
-      if (leafletCommunityMap) leafletCommunityMap.invalidateSize();
-    }, 150);
+      if (leafletCommunityMap) {
+        leafletCommunityMap.invalidateSize(true);
+        leafletCommunityMap.setView(userLiveCoords, 14);
+      }
+    }, 100);
   } else if (screenId === 's08') {
     renderProfile();
   }
@@ -1102,8 +1110,8 @@ async function triggerSos() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        lat: 12.9716,
-        lng: 77.5946,
+        lat: userLiveCoords[0],
+        lng: userLiveCoords[1],
         reason: 'Hold SOS trigger confirmed'
       })
     });
@@ -1130,7 +1138,7 @@ async function triggerSos() {
       // Auto-call police directly if enabled
       if (state.autoCallPoliceOnSos) {
         setTimeout(() => {
-          callPoliceDirectly(state.policeNumber || '100');
+          callPoliceDirectly(state.policeNumber || '911');
         }, 500);
       }
     }
@@ -1156,9 +1164,9 @@ async function cancelSos() {
 }
 
 // Direct Police Calling Helper
-window.callPoliceDirectly = function(number = '100') {
+window.callPoliceDirectly = function(number = state.policeNumber || '911') {
   playSound('alert');
-  showToast(`Dialing Police (${number})...`);
+  showToast(`Dialing Emergency Dispatch (${number})...`);
   console.log(`[Emergency Dispatch] Direct police call placed to: ${number}`);
   // Short delay to allow alert audio & toast UI to render before browser initiates tel protocol
   setTimeout(() => {
@@ -1167,7 +1175,7 @@ window.callPoliceDirectly = function(number = '100') {
 };
 
 // Emergency Direct SMS Dispatch Helper (Zero Prompts / Don't Ask)
-window.sendEmergencySms = function(number = '7804892413', lat = 12.9716, lng = 77.5946) {
+window.sendEmergencySms = function(number = state.userAlertNumber || '7804892413', lat = userLiveCoords[0], lng = userLiveCoords[1]) {
   const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
   const rawMessage = `EMERGENCY SOS ALERT! I need immediate help. My current location: ${mapLink}`;
   const message = encodeURIComponent(rawMessage);
@@ -1343,11 +1351,11 @@ function setupFakeCall() {
 // 7. REAL INTERACTIVE MAP ENGINE (LEAFLET + GOOGLE MAPS + FALLBACK)
 // ==========================================
 function initGoogleMapsEngine() {
-  // 1. If Leaflet is loaded (via unpkg CDN), initialize real interactive maps immediately
+  // 1. If Leaflet is loaded (via unpkg CDN), initialize real interactive maps on visible screens
   if (typeof L !== 'undefined') {
     console.log('[Sentinel] Leaflet 1.9.4 interactive map engine active');
-    renderTripMap();
-    renderCommunityMap();
+    // Note: Do not initialize Leaflet on hidden containers (offsetWidth === 0).
+    // Maps will initialize cleanly when user navigates to Screen 03 or Screen 06.
     return;
   }
 
@@ -1448,6 +1456,8 @@ function applyMapTheme(theme) {
 function renderTripMap() {
   const container = document.getElementById('tripMapContainer');
   if (!container) return;
+  // Guard against hidden container Leaflet initialization bug
+  if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
 
   // 1. Real Interactive Leaflet Map
   if (typeof L !== 'undefined') {
@@ -1605,6 +1615,8 @@ function renderTripMap() {
 function renderCommunityMap(reportsToRender) {
   const container = document.getElementById('communityMapContainer');
   if (!container) return;
+  // Guard against hidden container Leaflet initialization bug
+  if (container.offsetWidth === 0 || container.offsetHeight === 0) return;
 
   const reps = Array.isArray(reportsToRender) && reportsToRender.length > 0 
     ? reportsToRender 
@@ -1781,6 +1793,33 @@ function updateLeafletCommunityMarkers(reportsToRender) {
   });
 }
 
+window.recenterMapOnUser = function() {
+  playSound('click');
+  if ('geolocation' in navigator) {
+    showToast('📍 Acquiring your GPS location...');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        userLiveCoords = [pos.coords.latitude, pos.coords.longitude];
+        userHasLiveGps = true;
+        showToast('✅ Located! Map centered on your position');
+        state.reports = getIncidentsForLocation(userLiveCoords[0], userLiveCoords[1]);
+        if (leafletCommunityMap) {
+          leafletCommunityMap.setView(userLiveCoords, 15);
+          if (leafletUserMarker) leafletUserMarker.setLatLng(userLiveCoords);
+          updateLeafletCommunityMarkers(state.reports);
+        }
+      },
+      (err) => {
+        showToast('Location permission needed or unavailable');
+        if (leafletCommunityMap) leafletCommunityMap.setView(userLiveCoords, 14);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+    );
+  } else {
+    if (leafletCommunityMap) leafletCommunityMap.setView(userLiveCoords, 14);
+  }
+};
+
 window.selectMapPin = function(repId, title, location) {
   playSound('click');
   showToast(`📍 ${title} — ${location}`);
@@ -1857,6 +1896,12 @@ function renderProfile() {
 
   const safeWordQuote = document.getElementById('safeWordQuote');
   if (safeWordQuote) safeWordQuote.textContent = `"${state.profile.safeWord}"`;
+
+  // Sync Emergency Direct Dials & Selected Region
+  const activeRegion = (state.profile && state.profile.region) ? state.profile.region : 'US_CA';
+  const regionSelect = document.getElementById('emergencyRegionSelect');
+  if (regionSelect) regionSelect.value = activeRegion;
+  updateEmergencyDials(activeRegion);
 
   // Dynamic time-of-day greeting
   const hour = new Date().getHours();
@@ -2183,8 +2228,8 @@ async function submitReport(shareToCommunity) {
     location: location || 'Near current location',
     timeAgo: 'Just now',
     confirms: 1,
-    lat: 12.9740 + (Math.random() - 0.5) * 0.008,
-    lng: 77.6060 + (Math.random() - 0.5) * 0.008,
+    lat: Number((userLiveCoords[0] + (Math.random() - 0.5) * 0.008).toFixed(5)),
+    lng: Number((userLiveCoords[1] + (Math.random() - 0.5) * 0.008).toFixed(5)),
     notes: notes,
     verified: false
   };

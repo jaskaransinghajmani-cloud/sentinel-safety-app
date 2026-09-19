@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/style.css?v=3.0">
+  <link rel="stylesheet" href="css/style.css?v=4.1">
 </head>
 <body>
 
@@ -313,12 +313,12 @@
               </div>
 
               <!-- 1-TAP DIRECT POLICE CALL BANNER -->
-              <div class="direct-police-banner" id="btnDirectPoliceCall" onclick="callPoliceDirectly('100')">
+              <div class="direct-police-banner" id="btnDirectPoliceCall" onclick="callPoliceDirectly(state.policeNumber || '911')">
                 <div class="direct-police-icon">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M14.05 2a9 9 0 0 1 8 7.94"/><path d="M14.05 6A5 5 0 0 1 18 10"/></svg>
                 </div>
                 <div class="direct-police-info">
-                  <div class="direct-police-title">Call Police Directly (100)</div>
+                  <div class="direct-police-title" id="homePoliceBannerTitle">Call Emergency Dispatch (911)</div>
                   <div class="direct-police-sub">1-Tap instant emergency connection</div>
                 </div>
                 <button type="button" class="direct-police-dial-btn" aria-label="Direct Call Police">CALL</button>
@@ -538,6 +538,10 @@
 
               <!-- GOOGLE MAP FOR COMMUNITY INCIDENTS -->
               <div class="map-container-box" id="communityMapBox">
+                <button type="button" class="map-recenter-btn" onclick="recenterMapOnUser()" title="Center on my location">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+                  <span>Locate Me</span>
+                </button>
                 <div class="map-element" id="communityMapContainer"></div>
               </div>
 
@@ -599,6 +603,11 @@
                  SCREEN 08 · PROFILE & SAFETY SETTINGS
                  ============================================== -->
             <section class="screen-view" id="s08">
+              <div class="screen-header-simple">
+                <h2>Settings & Safety Vault</h2>
+                <p>Manage your profile, emergency direct dials & privacy</p>
+              </div>
+
               <div class="profile-card">
                 <div class="profile-avatar-large" id="profileAvatarLarge">JS</div>
                 <div class="profile-info">
@@ -715,8 +724,8 @@
               <span>Circle</span>
             </button>
             <button type="button" class="nav-item" data-nav="profile" data-screen="s08">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/></svg>
-              <span>Profile</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              <span>Settings</span>
             </button>
           </nav>
 
@@ -867,6 +876,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="js/app.js?v=3.0"></script>
+  <script src="js/app.js?v=4.1"></script>
 </body>
 </html>
