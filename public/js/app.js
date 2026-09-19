@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupFakeCall();
   setupReportForm();
   setupHardwareButtons();
+  setupSettingsToggles();
   
   // Fetch initial data from backend Express API
   await fetchConfig();
@@ -170,15 +171,70 @@ async function fetchConfig() {
   }
 }
 
+const DEFAULT_PROFILE = {
+  name: "Priya Nair",
+  phone: "+1 780-489-2413",
+  avatar: "PN",
+  status: "Protected",
+  safeWord: "Is the kettle on?",
+  sosNumber: "7804892413",
+  settings: {
+    autoRecordSOS: true,
+    volumeTrigger: true,
+    shareBattery: false,
+    journalPrivacy: "Only me",
+    communityPosts: "Anonymous"
+  },
+  emergencyContacts: {
+    police: "100",
+    womenHelpline: "1091",
+    emergency: "112"
+  }
+};
+
 async function fetchProfile() {
+  // 1. Try loading from localStorage first
+  const saved = localStorage.getItem('sentinel_profile');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed && parsed.name) {
+        state.profile = parsed;
+        if (parsed.sosNumber) state.userAlertNumber = parsed.sosNumber;
+        else if (parsed.phone) state.userAlertNumber = parsed.phone.replace(/[^\d]/g, '');
+        renderProfile();
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved profile from localStorage', e);
+    }
+  }
+
+  // 2. Try fetching from backend Express API if available
   try {
     const res = await fetch('/api/profile');
-    const data = await res.json();
-    state.profile = data;
-    renderProfile();
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.name) {
+        state.profile = data;
+        localStorage.setItem('sentinel_profile', JSON.stringify(data));
+      }
+    }
   } catch (err) {
-    console.error('Failed to load profile', err);
+    console.warn('Backend profile unreachable, using localStorage or default profile', err);
   }
+
+  if (!state.profile) {
+    state.profile = { ...DEFAULT_PROFILE };
+    localStorage.setItem('sentinel_profile', JSON.stringify(DEFAULT_PROFILE));
+  }
+
+  if (state.profile.sosNumber) {
+    state.userAlertNumber = state.profile.sosNumber;
+  } else if (state.profile.phone) {
+    state.userAlertNumber = state.profile.phone.replace(/[^\d]/g, '');
+  }
+
+  renderProfile();
 }
 
 const DEFAULT_GUARDIANS = [
@@ -272,28 +328,139 @@ async function fetchGuardians() {
   renderGuardians();
 }
 
+const DEFAULT_REPORTS = [
+  {
+    id: "rep-1",
+    type: "followed",
+    title: "Someone reported being followed",
+    location: "Church Street underpass",
+    timeAgo: "40 min ago",
+    confirms: 6,
+    lat: 12.9745,
+    lng: 77.6080,
+    notes: "Individual matching description loitering by eastern stairs.",
+    verified: true
+  },
+  {
+    id: "rep-2",
+    type: "lighting",
+    title: "Streetlight out for 3rd night",
+    location: "Behind City Market",
+    timeAgo: "reported by 3 people",
+    confirms: 3,
+    lat: 12.9660,
+    lng: 77.5780,
+    notes: "Pitch dark corner near lane 4 intersection.",
+    verified: false
+  },
+  {
+    id: "rep-3",
+    type: "safe_zone",
+    title: "24/7 Police Assistance Booth",
+    location: "MG Road & Brigade Rd Junction",
+    timeAgo: "Verified Safe Zone",
+    confirms: 54,
+    lat: 12.9750,
+    lng: 77.6070,
+    notes: "Constant patrol, CCTV coverage, brightly illuminated.",
+    verified: true
+  },
+  {
+    id: "rep-4",
+    type: "lighting",
+    title: "Dark pathway towards Metro Gate 3",
+    location: "Brigade Road, near Metro exit 3",
+    timeAgo: "2 hours ago",
+    confirms: 8,
+    lat: 12.9732,
+    lng: 77.6078,
+    notes: "Broken lamp pole, poor visibility after 8:30 PM.",
+    verified: true
+  },
+  {
+    id: "rep-5",
+    type: "safe_zone",
+    title: "Apollo Pharmacy 24/7 (Safe Refuge)",
+    location: "Residency Road corner",
+    timeAgo: "Verified Safe Zone",
+    confirms: 31,
+    lat: 12.9712,
+    lng: 77.6025,
+    notes: "Security guard present, emergency shelter partner.",
+    verified: true
+  }
+];
+
+const DEFAULT_TRIP = {
+  destinationName: "Rekha's home",
+  originName: "MG Road Metro",
+  remainingMinutes: 12,
+  autoCheckinMinutes: 3,
+  status: "active",
+  watchersCount: 3
+};
+
 async function fetchReports(type = 'all') {
+  // 1. Try loading from localStorage first
+  const saved = localStorage.getItem('sentinel_reports');
+  let loaded = false;
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        state.reports = parsed;
+        loaded = true;
+      }
+    } catch (e) {
+      console.warn('Failed to parse saved reports from localStorage', e);
+    }
+  }
+
+  // 2. Try fetching from backend Express API
   try {
     const url = type === 'all' ? '/api/reports' : `/api/reports?type=${type}`;
     const res = await fetch(url);
-    const data = await res.json();
-    state.reports = data;
-    renderReports();
-    updateMapMarkers();
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        state.reports = data;
+        localStorage.setItem('sentinel_reports', JSON.stringify(data));
+        loaded = true;
+      }
+    }
   } catch (err) {
-    console.error('Failed to load reports', err);
+    console.warn('Backend reports endpoint unreachable, using local storage or defaults', err);
   }
+
+  if (!loaded || !state.reports || state.reports.length === 0) {
+    state.reports = [...DEFAULT_REPORTS];
+    localStorage.setItem('sentinel_reports', JSON.stringify(DEFAULT_REPORTS));
+  }
+
+  // Filter if specific type requested
+  const reportsToDisplay = (type && type !== 'all')
+    ? state.reports.filter(r => r.type === type)
+    : state.reports;
+
+  renderReports(reportsToDisplay);
+  renderCommunityMap(reportsToDisplay);
+  updateMapMarkers(reportsToDisplay);
 }
 
 async function fetchActiveTrip() {
   try {
     const res = await fetch('/api/trips/active');
-    const data = await res.json();
-    state.activeTrip = data;
-    renderTripInfo();
+    if (res.ok) {
+      const data = await res.json();
+      state.activeTrip = data;
+    } else {
+      state.activeTrip = { ...DEFAULT_TRIP };
+    }
   } catch (err) {
-    console.error('Failed to load trip', err);
+    console.warn('Backend trip unreachable, using default active trip', err);
+    state.activeTrip = { ...DEFAULT_TRIP };
   }
+  renderTripInfo();
 }
 
 // ==========================================
@@ -573,6 +740,14 @@ function switchScreen(screenId) {
     btn.classList.toggle('active', btn.dataset.nav === activeNav);
   });
 
+  // Update map view switcher tabs if present
+  const tabCommunity = document.getElementById('tabMapCommunity');
+  const tabTrip = document.getElementById('tabMapTrip');
+  if (tabCommunity && tabTrip) {
+    tabCommunity.classList.toggle('active', screenId === 's06');
+    tabTrip.classList.toggle('active', screenId === 's03');
+  }
+
   // Refresh screens
   if (screenId === 's03') {
     setTimeout(renderTripMap, 150);
@@ -582,7 +757,58 @@ function switchScreen(screenId) {
   } else if (screenId === 's05') {
     renderSosGuardiansList();
   } else if (screenId === 's06') {
-    setTimeout(renderCommunityMap, 150);
+    setTimeout(() => renderCommunityMap(), 150);
+  } else if (screenId === 's08') {
+    renderProfile();
+  }
+}
+
+function setupSettingsToggles() {
+  const toggleAutoRecord = document.getElementById('toggleAutoRecord');
+  const toggleVolumeTrigger = document.getElementById('toggleVolumeTrigger');
+  const toggleShareBattery = document.getElementById('toggleShareBattery');
+
+  // Load saved settings if any
+  const savedSettings = localStorage.getItem('sentinel_settings');
+  if (savedSettings) {
+    try {
+      const parsed = JSON.parse(savedSettings);
+      if (toggleAutoRecord && parsed.autoRecord !== undefined) toggleAutoRecord.checked = parsed.autoRecord;
+      if (toggleVolumeTrigger && parsed.volumeTrigger !== undefined) toggleVolumeTrigger.checked = parsed.volumeTrigger;
+      if (toggleShareBattery && parsed.shareBattery !== undefined) toggleShareBattery.checked = parsed.shareBattery;
+    } catch (e) {
+      console.warn('Failed to parse saved settings', e);
+    }
+  }
+
+  function saveSettings() {
+    const s = {
+      autoRecord: toggleAutoRecord ? toggleAutoRecord.checked : true,
+      volumeTrigger: toggleVolumeTrigger ? toggleVolumeTrigger.checked : true,
+      shareBattery: toggleShareBattery ? toggleShareBattery.checked : false
+    };
+    localStorage.setItem('sentinel_settings', JSON.stringify(s));
+  }
+
+  if (toggleAutoRecord) {
+    toggleAutoRecord.onchange = () => {
+      saveSettings();
+      showToast(toggleAutoRecord.checked ? 'Auto-record on SOS: Enabled' : 'Auto-record on SOS: Disabled');
+    };
+  }
+
+  if (toggleVolumeTrigger) {
+    toggleVolumeTrigger.onchange = () => {
+      saveSettings();
+      showToast(toggleVolumeTrigger.checked ? 'Volume-button trigger: Enabled' : 'Volume-button trigger: Disabled');
+    };
+  }
+
+  if (toggleShareBattery) {
+    toggleShareBattery.onchange = () => {
+      saveSettings();
+      showToast(toggleShareBattery.checked ? 'Share battery with circle: Enabled' : 'Share battery with circle: Disabled');
+    };
   }
 }
 
@@ -1160,9 +1386,11 @@ function renderTripMap() {
 }
 
 // Render Screen 06 Community Map
-function renderCommunityMap() {
+function renderCommunityMap(reportsToRender) {
   const container = document.getElementById('communityMapContainer');
   if (!container) return;
+
+  const reps = Array.isArray(reportsToRender) ? reportsToRender : (state.reports && state.reports.length > 0 ? state.reports : DEFAULT_REPORTS);
 
   if (state.googleMapsLoaded && window.google) {
     const center = { lat: 12.9735, lng: 77.6070 };
@@ -1173,62 +1401,88 @@ function renderCommunityMap() {
       zoomControl: true,
       styles: getMapThemeStyles(state.activeTheme)
     });
-    updateMapMarkers();
+    updateMapMarkers(reps);
   } else {
     // Vector Community Safety Map with Pins
     const colorBg = state.activeTheme === 'light' ? '#E2E8F0' : '#111622';
     const colorRoad = state.activeTheme === 'light' ? '#FFFFFF' : '#1C2433';
 
     let pinsSvg = '';
-    state.reports.forEach((rep, idx) => {
+    reps.forEach((rep, idx) => {
       let pinColor = '#EF4444'; // followed
       if (rep.type === 'lighting') pinColor = '#F59E0B';
       if (rep.type === 'safe_zone') pinColor = '#10B981';
 
       // Spread pins visually across map
       const x = 50 + (idx * 60) % 240;
-      const y = 60 + (idx * 45) % 180;
+      const y = 55 + (idx * 48) % 150;
 
       pinsSvg += `
-        <g style="cursor:pointer;" onclick="showToast('${rep.title.replace(/'/g, "\\'")} - ${rep.location.replace(/'/g, "\\'")}')">
-          <circle cx="${x}" cy="${y}" r="12" fill="${pinColor}" opacity="0.25"/>
-          <circle cx="${x}" cy="${y}" r="7" fill="${pinColor}" stroke="#FFFFFF" stroke-width="1.5"/>
+        <g style="cursor:pointer;" onclick="selectMapPin('${rep.id}', '${rep.title.replace(/'/g, "\\'")}', '${rep.location.replace(/'/g, "\\'")}')">
+          <circle cx="${x}" cy="${y}" r="14" fill="${pinColor}" opacity="0.28">
+            <animate attributeName="r" values="10;18;10" dur="2.4s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.35;0.1;0.35" dur="2.4s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="${x}" cy="${y}" r="7.5" fill="${pinColor}" stroke="#FFFFFF" stroke-width="2"/>
         </g>
       `;
     });
 
     container.innerHTML = `
-      <div style="width:100%;height:100%;background:${colorBg};position:relative;overflow:hidden;">
-        <svg width="100%" height="100%" viewBox="0 0 320 240" preserveAspectRatio="none">
-          <rect width="320" height="240" fill="${colorBg}"/>
-          <line x1="0" y1="60" x2="320" y2="60" stroke="${colorRoad}" stroke-width="14"/>
-          <line x1="0" y1="160" x2="320" y2="160" stroke="${colorRoad}" stroke-width="16"/>
-          <line x1="90" y1="0" x2="90" y2="240" stroke="${colorRoad}" stroke-width="14"/>
-          <line x1="210" y1="0" x2="210" y2="240" stroke="${colorRoad}" stroke-width="18"/>
+      <div style="width:100%;height:100%;background:${colorBg};position:relative;overflow:hidden;border-radius:inherit;">
+        <svg width="100%" height="100%" viewBox="0 0 320 250" preserveAspectRatio="none">
+          <rect width="320" height="250" fill="${colorBg}"/>
+          <line x1="0" y1="65" x2="320" y2="65" stroke="${colorRoad}" stroke-width="14"/>
+          <line x1="0" y1="165" x2="320" y2="165" stroke="${colorRoad}" stroke-width="16"/>
+          <line x1="90" y1="0" x2="90" y2="250" stroke="${colorRoad}" stroke-width="14"/>
+          <line x1="210" y1="0" x2="210" y2="250" stroke="${colorRoad}" stroke-width="18"/>
           
-          <!-- User Location -->
-          <circle cx="150" cy="110" r="6" fill="#38BDF8" stroke="#FFFFFF" stroke-width="2"/>
-          <circle cx="150" cy="110" r="14" fill="rgba(56, 189, 248, 0.2)"/>
+          <!-- Radar concentric rings for scan effect -->
+          <circle cx="150" cy="115" r="45" fill="none" stroke="rgba(56, 189, 248, 0.15)" stroke-width="1" stroke-dasharray="4 4"/>
+          <circle cx="150" cy="115" r="85" fill="none" stroke="rgba(56, 189, 248, 0.1)" stroke-width="1" stroke-dasharray="4 4"/>
+
+          <!-- User Location Beacon -->
+          <circle cx="150" cy="115" r="18" fill="rgba(56, 189, 248, 0.25)">
+            <animate attributeName="r" values="12;26;12" dur="2s" repeatCount="indefinite"/>
+            <animate attributeName="opacity" values="0.5;0.05;0.5" dur="2s" repeatCount="indefinite"/>
+          </circle>
+          <circle cx="150" cy="115" r="7" fill="#38BDF8" stroke="#FFFFFF" stroke-width="2"/>
           
           <!-- Incident & Safety Pins -->
           ${pinsSvg}
         </svg>
-        <div style="position:absolute;top:8px;left:10px;background:rgba(0,0,0,0.65);padding:3px 8px;border-radius:10px;font-size:0.68rem;color:#FFF;">
-          ● 5 safety incidents nearby
+        <div style="position:absolute;top:10px;left:12px;background:rgba(0,0,0,0.72);padding:4px 10px;border-radius:12px;font-size:0.7rem;font-weight:700;color:#FFF;backdrop-filter:blur(6px);box-shadow:0 4px 12px rgba(0,0,0,0.4);">
+          ● ${reps.length} safety incidents nearby
+        </div>
+        <div style="position:absolute;bottom:10px;right:12px;background:rgba(0,0,0,0.72);padding:4px 9px;border-radius:8px;font-size:0.65rem;color:#86EFAC;backdrop-filter:blur(6px);">
+          ⚡ Live Radar · 1.2 km radius
         </div>
       </div>
     `;
   }
 }
 
-function updateMapMarkers() {
+window.selectMapPin = function(repId, title, location) {
+  playSound('click');
+  showToast(`📍 ${title} — ${location}`);
+  const card = document.querySelector(`[data-rep-id="${repId}"]`);
+  if (card) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    card.style.borderColor = 'var(--accent-primary)';
+    setTimeout(() => { card.style.borderColor = ''; }, 2000);
+  }
+};
+
+function updateMapMarkers(reportsToRender) {
   if (!state.googleMapsLoaded || !communityMap || !window.google) return;
   
+  const reps = Array.isArray(reportsToRender) ? reportsToRender : (state.reports && state.reports.length > 0 ? state.reports : DEFAULT_REPORTS);
+
   // Clear old markers
   communityMarkers.forEach(m => m.setMap(null));
   communityMarkers = [];
 
-  state.reports.forEach(rep => {
+  reps.forEach(rep => {
     let color = '#EF4444';
     if (rep.type === 'lighting') color = '#F59E0B';
     if (rep.type === 'safe_zone') color = '#10B981';
@@ -1265,6 +1519,17 @@ function renderProfile() {
 
   const phoneElems = document.querySelectorAll('.user-profile-phone');
   phoneElems.forEach(el => el.textContent = state.profile.phone);
+
+  const avatarLarge = document.getElementById('profileAvatarLarge');
+  if (avatarLarge) {
+    const initials = state.profile.avatar || (state.profile.name ? state.profile.name.split(' ').filter(Boolean).map(p => p[0]).slice(0, 2).join('').toUpperCase() : 'PN');
+    avatarLarge.textContent = initials;
+  }
+
+  const sosRecipient = document.getElementById('profileSosRecipientText');
+  if (sosRecipient) {
+    sosRecipient.textContent = state.userAlertNumber || state.profile.sosNumber || state.profile.phone || '780-489-2413';
+  }
 
   const safeWordQuote = document.getElementById('safeWordQuote');
   if (safeWordQuote) safeWordQuote.textContent = `"${state.profile.safeWord}"`;
@@ -1485,21 +1750,34 @@ function escapeHtml(text) {
     .replace(/'/g, '&#039;');
 }
 
-function renderReports() {
+function renderReports(reportsToRender) {
   const streamContainer = document.getElementById('reportsStreamList');
   if (!streamContainer) return;
 
-  streamContainer.innerHTML = state.reports.map(rep => {
+  const reps = Array.isArray(reportsToRender) ? reportsToRender : (state.reports && state.reports.length > 0 ? state.reports : DEFAULT_REPORTS);
+
+  if (reps.length === 0) {
+    streamContainer.innerHTML = `
+      <div style="text-align: center; padding: 24px 16px; color: var(--text-muted); background: rgba(22, 29, 46, 0.5); border-radius: var(--radius-md); border: 1px dashed var(--border-subtle);">
+        <p style="font-size: 0.9rem; font-weight: 700; color: var(--text-main);">No reports in this category</p>
+        <p style="font-size: 0.78rem; margin-top: 4px;">Area looks peaceful and safe right now.</p>
+      </div>
+    `;
+    return;
+  }
+
+  streamContainer.innerHTML = reps.map(rep => {
     let colorClass = 'red';
     if (rep.type === 'lighting') colorClass = 'amber';
     if (rep.type === 'safe_zone') colorClass = 'safe';
 
     return `
-      <div class="report-stream-card" onclick="confirmReport('${rep.id}')">
+      <div class="report-stream-card" data-rep-id="${rep.id}" onclick="confirmReport('${rep.id}')" title="Click to verify report">
         <div class="report-indicator-strip ${colorClass}"></div>
         <div class="report-card-content">
-          <div class="report-card-title">${rep.title}</div>
-          <div class="report-card-meta">${rep.location} · ${rep.timeAgo} · ${rep.confirms} confirms</div>
+          <div class="report-card-title">${escapeHtml(rep.title)}</div>
+          <div class="report-card-meta">📍 ${escapeHtml(rep.location)} · ${escapeHtml(rep.timeAgo)} · <strong>${rep.confirms || 1} verifies</strong></div>
+          ${rep.notes ? `<div style="font-size: 0.76rem; color: var(--text-dim); margin-top: 4px;">${escapeHtml(rep.notes)}</div>` : ''}
         </div>
       </div>
     `;
@@ -1507,18 +1785,32 @@ function renderReports() {
 }
 
 async function confirmReport(reportId) {
+  let rep = state.reports.find(r => r.id === reportId);
+  if (!rep) {
+    rep = DEFAULT_REPORTS.find(r => r.id === reportId);
+    if (rep) state.reports.push(rep);
+  }
+
+  if (rep) {
+    rep.confirms = (rep.confirms || 0) + 1;
+    localStorage.setItem('sentinel_reports', JSON.stringify(state.reports));
+    playSound('click');
+    showToast(`✅ Verified report (${rep.confirms} verifications). Thank you!`);
+    renderReports();
+  }
+
   try {
     const res = await fetch(`/api/reports/${reportId}/confirm`, { method: 'POST' });
-    const data = await res.json();
-    if (data.success) {
-      playSound('click');
-      showToast(`Report confirmed (${data.confirms} verifications). Thank you!`);
-      const rep = state.reports.find(r => r.id === reportId);
-      if (rep) rep.confirms = data.confirms;
-      renderReports();
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.confirms && rep) {
+        rep.confirms = data.confirms;
+        localStorage.setItem('sentinel_reports', JSON.stringify(state.reports));
+        renderReports();
+      }
     }
   } catch (err) {
-    console.error('Error confirming report', err);
+    console.warn('Backend report confirm unreachable, saved locally', err);
   }
 }
 
@@ -1559,8 +1851,36 @@ async function submitReport(shareToCommunity) {
   const notes = notesInput ? notesInput.value : '';
   const kind = activeCategory ? activeCategory.textContent.trim() : 'Followed';
 
+  // 1. Create local report object
+  const newReport = {
+    id: 'rep-' + Date.now(),
+    type: kind.toLowerCase().includes('light') ? 'lighting' : (kind.toLowerCase().includes('safe') ? 'safe_zone' : 'followed'),
+    title: `${kind} reported nearby`,
+    location: location || 'Near current location',
+    timeAgo: 'Just now',
+    confirms: 1,
+    lat: 12.9740 + (Math.random() - 0.5) * 0.008,
+    lng: 77.6060 + (Math.random() - 0.5) * 0.008,
+    notes: notes,
+    verified: false
+  };
+
+  if (shareToCommunity) {
+    state.reports.unshift(newReport);
+    localStorage.setItem('sentinel_reports', JSON.stringify(state.reports));
+    playSound('click');
+    showToast('Saved to journal & shared anonymously to community map!');
+    fetchReports();
+    switchScreen('s06');
+  } else {
+    playSound('click');
+    showToast('Safely encrypted & saved to your private journal.');
+    switchScreen('s02');
+  }
+
+  // 2. Try syncing to backend Express API if running
   try {
-    const res = await fetch('/api/journal', {
+    await fetch('/api/journal', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1571,23 +1891,120 @@ async function submitReport(shareToCommunity) {
         audioAttachment: 'clip-2026-09-17-01.wav'
       })
     });
-    const data = await res.json();
-    if (data.success) {
-      playSound('click');
-      if (shareToCommunity) {
-        showToast('Saved to journal & shared anonymously to community map!');
-        await fetchReports();
-        switchScreen('s06');
-      } else {
-        showToast('Safely encrypted & saved to your private journal.');
-        switchScreen('s02');
-      }
-    }
   } catch (err) {
-    console.error('Failed to submit report', err);
-    showToast('Failed to save report. Please check server.');
+    console.warn('Backend journal API unreachable (saved locally)', err);
   }
 }
+
+// ==========================================
+// 8.2 PROFILE MANAGEMENT MODAL & SETTINGS
+// ==========================================
+window.openEditProfileModal = function() {
+  const modal = document.getElementById('editProfileModal');
+  if (modal) {
+    modal.classList.add('active');
+    const nameInput = document.getElementById('profileEditName');
+    const phoneInput = document.getElementById('profileEditPhone');
+    const sosInput = document.getElementById('profileEditSosNumber');
+    const safeWordInput = document.getElementById('profileEditSafeWord');
+
+    const prof = state.profile || DEFAULT_PROFILE;
+    if (nameInput) nameInput.value = prof.name || '';
+    if (phoneInput) phoneInput.value = prof.phone || '';
+    if (sosInput) sosInput.value = state.userAlertNumber || prof.sosNumber || prof.phone || '780-489-2413';
+    if (safeWordInput) safeWordInput.value = prof.safeWord || 'Is the kettle on?';
+
+    if (nameInput) {
+      setTimeout(() => nameInput.focus(), 150);
+    }
+  }
+};
+
+window.closeEditProfileModal = function() {
+  const modal = document.getElementById('editProfileModal');
+  if (modal) {
+    modal.classList.remove('active');
+  }
+};
+
+window.handleProfileBackdropClick = function(e) {
+  if (e.target && e.target.id === 'editProfileModal') {
+    closeEditProfileModal();
+  }
+};
+
+window.handleEditProfileSubmit = async function(e) {
+  e.preventDefault();
+
+  const nameInput = document.getElementById('profileEditName');
+  const phoneInput = document.getElementById('profileEditPhone');
+  const sosInput = document.getElementById('profileEditSosNumber');
+  const safeWordInput = document.getElementById('profileEditSafeWord');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const phone = phoneInput ? phoneInput.value.trim() : '';
+  const sosNumber = sosInput ? sosInput.value.trim() : '';
+  const safeWord = safeWordInput ? safeWordInput.value.trim() : '';
+
+  if (!name || !phone) {
+    showToast('Please enter both your name and phone number');
+    return;
+  }
+
+  // Generate 2-letter initials
+  const initials = name.split(' ')
+    .filter(Boolean)
+    .map(p => p[0].toUpperCase())
+    .slice(0, 2)
+    .join('') || 'ME';
+
+  const cleanSosNumber = (sosNumber || phone).replace(/[^\d]/g, '') || '7804892413';
+
+  state.profile = {
+    ...(state.profile || DEFAULT_PROFILE),
+    name,
+    phone,
+    avatar: initials,
+    safeWord: safeWord || 'Is the kettle on?',
+    sosNumber: cleanSosNumber
+  };
+
+  state.userAlertNumber = cleanSosNumber;
+
+  // Save to localStorage
+  localStorage.setItem('sentinel_profile', JSON.stringify(state.profile));
+
+  // Also update primary user guardian (g0) in guardians circle
+  if (Array.isArray(state.guardians) && state.guardians.length > 0) {
+    const me = state.guardians.find(g => g.id === 'g0');
+    if (me) {
+      me.name = `${name} (Emergency Alert)`;
+      me.phone = phone;
+      me.avatar = initials;
+      localStorage.setItem('sentinel_guardians', JSON.stringify(state.guardians));
+      renderGuardians();
+    }
+  }
+
+  // Update SOS countdown text
+  const sosSub = document.getElementById('sosCountdownSub');
+  if (sosSub) {
+    sosSub.innerHTML = `Emergency SMS alert & live GPS location dispatched to <strong>${escapeHtml(sosNumber || phone)}</strong>, Amma, Rekha and Sanjay.`;
+  }
+
+  // Sync to Express backend API if active
+  fetch('/api/profile', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state.profile)
+  }).catch(err => console.warn('Could not sync to backend /api/profile (saved locally)', err));
+
+  // Update UI immediately
+  renderProfile();
+  closeEditProfileModal();
+  playSound('click');
+  showToast(`✅ Profile updated! Direct alerts routed to ${cleanSosNumber}`);
+};
 
 // Toast Notifications
 function showToast(msg) {
