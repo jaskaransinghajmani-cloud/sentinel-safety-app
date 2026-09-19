@@ -10,7 +10,7 @@ console.log('1. Connecting to Cloud Android Package Builder...');
 
 const payload = JSON.stringify({
   packageId: 'com.sentinel.safetyapp',
-  host: 'https://jaskaransinghajmani-cloud.github.io/sentinel-safety-app/',
+  host: 'https://jaskaransinghajmani-cloud.github.io',
   name: 'Sentinel Safety',
   launcherName: 'Sentinel',
   themeColor: '#E53935',
@@ -31,8 +31,8 @@ const payload = JSON.stringify({
     organizationalUnit: 'Security',
     countryCode: 'IN'
   },
-  appVersion: '1.0.1.0',
-  appVersionCode: 2,
+  appVersion: '1.0.2.0',
+  appVersionCode: 3,
   display: 'standalone',
   orientation: 'portrait',
   enableNotifications: false,
