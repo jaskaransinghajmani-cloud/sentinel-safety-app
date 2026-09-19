@@ -9,10 +9,11 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
@@ -88,10 +89,20 @@
     <!-- VIEW MODE 1: INTERACTIVE PHONE SIMULATOR -->
     <div class="phone-simulator-wrap" id="phoneSimulatorWrap">
       <div class="phone-mockup">
-        <!-- Physical Bezel & Dynamic Notch -->
-        <div class="phone-notch">
+        <!-- Titanium Side Buttons (Action, Volume Up/Down, Power) -->
+        <div class="phone-side-btn side-btn-action" title="Action Button"></div>
+        <div class="phone-side-btn side-btn-vol-up" title="Volume Up"></div>
+        <div class="phone-side-btn side-btn-vol-down" title="Volume Down"></div>
+        <div class="phone-side-btn side-btn-power" title="Power / Lock"></div>
+
+        <!-- Physical Bezel & Dynamic Island Notch -->
+        <div class="phone-notch" id="phoneDynamicIsland">
           <div class="notch-sensor"></div>
           <div class="notch-camera"></div>
+          <div class="island-pill-indicator">
+            <span class="island-beacon-dot"></span>
+            <span class="island-beacon-text">SENTINEL ARMED</span>
+          </div>
         </div>
 
         <!-- Phone Display Screen -->

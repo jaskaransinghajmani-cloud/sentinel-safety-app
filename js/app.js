@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSosHoldButton();
   setupFakeCall();
   setupReportForm();
+  setupHardwareButtons();
   
   // Fetch initial data from backend Express API
   await fetchConfig();
@@ -532,6 +533,23 @@ function switchScreen(screenId) {
     target.classList.add('active');
   }
 
+  // Update Dynamic Island Beacon status
+  const beaconText = document.querySelector('.island-beacon-text');
+  const beaconDot = document.querySelector('.island-beacon-dot');
+  const screenStatusMap = {
+    's01': { text: 'READY TO PROTECT', color: '#10B981' },
+    's02': { text: 'SENTINEL ARMED', color: '#10B981' },
+    's03': { text: 'LIVE GPS · 3 WATCHING', color: '#38BDF8' },
+    's04': { text: `${state.guardians.length || 4} TRUSTED GUARDIANS`, color: '#A855F7' },
+    's05': { text: 'EMERGENCY SOS ACTIVE', color: '#EF4444' },
+    's06': { text: 'COMMUNITY RADAR 1.2KM', color: '#F59E0B' },
+    's07': { text: 'SAFETY LOG ACTIVE', color: '#38BDF8' },
+    's08': { text: 'VAULT PROTECTED', color: '#10B981' }
+  };
+  const status = screenStatusMap[screenId] || { text: 'SENTINEL ARMED', color: '#10B981' };
+  if (beaconText) beaconText.textContent = status.text;
+  if (beaconDot) beaconDot.style.background = status.color;
+
   // Update 3-dots dropdown menu active state
   document.querySelectorAll('.screen-menu-item').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.target === screenId);
@@ -565,6 +583,52 @@ function switchScreen(screenId) {
     renderSosGuardiansList();
   } else if (screenId === 's06') {
     setTimeout(renderCommunityMap, 150);
+  }
+}
+
+function setupHardwareButtons() {
+  const actionBtn = document.querySelector('.side-btn-action');
+  const volUpBtn = document.querySelector('.side-btn-vol-up');
+  const volDownBtn = document.querySelector('.side-btn-vol-down');
+  const powerBtn = document.querySelector('.side-btn-power');
+  const dynamicIsland = document.getElementById('phoneDynamicIsland');
+
+  if (actionBtn) {
+    actionBtn.addEventListener('click', () => {
+      playSound('alert');
+      showToast('⚡ Action Button: Triggering Emergency SOS...');
+      triggerSos();
+    });
+  }
+
+  if (volUpBtn) {
+    volUpBtn.addEventListener('click', () => {
+      playSound('click');
+      showToast('🔊 Volume Trigger: Discreet Fake Call dispatched...');
+      triggerFakeCall(600);
+    });
+  }
+
+  if (volDownBtn) {
+    volDownBtn.addEventListener('click', () => {
+      playSound('click');
+      showToast('🔉 Volume Trigger: Discreet Fake Call dispatched...');
+      triggerFakeCall(600);
+    });
+  }
+
+  if (powerBtn) {
+    powerBtn.addEventListener('click', () => {
+      playSound('click');
+      window.cycleNextTheme();
+    });
+  }
+
+  if (dynamicIsland) {
+    dynamicIsland.addEventListener('click', () => {
+      playSound('click');
+      showToast('🛡️ Sentinel Dynamic Island: Live Security Beacon is ACTIVE & Encrypted');
+    });
   }
 }
 
@@ -1204,6 +1268,12 @@ function renderProfile() {
 
   const safeWordQuote = document.getElementById('safeWordQuote');
   if (safeWordQuote) safeWordQuote.textContent = `"${state.profile.safeWord}"`;
+
+  // Dynamic time-of-day greeting
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : (hour < 17 ? 'Good afternoon' : 'Good evening');
+  const greetingElems = document.querySelectorAll('.greeting-time');
+  greetingElems.forEach(el => el.textContent = `${greeting},`);
 }
 
 function renderGuardians() {
