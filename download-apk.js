@@ -31,8 +31,8 @@ const payload = JSON.stringify({
     organizationalUnit: 'Security',
     countryCode: 'IN'
   },
-  appVersion: '1.0.3.0',
-  appVersionCode: 4,
+  appVersion: '1.0.4.0',
+  appVersionCode: 5,
   display: 'standalone',
   orientation: 'portrait',
   enableNotifications: false,
