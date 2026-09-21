@@ -8,7 +8,13 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'allow' }));
+
+// Serve Android Digital Asset Links for full-screen Trusted Web Activity (removes Chrome URL bar)
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.sendFile(path.join(__dirname, 'public', '.well-known', 'assetlinks.json'));
+});
 
 // In-Memory Database for Hackathon Prototype
 const db = {

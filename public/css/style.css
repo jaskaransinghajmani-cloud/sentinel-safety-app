@@ -3538,6 +3538,9 @@ input:checked + .toggle-slider:before {
   .apk-download-btn {
     display: none !important;
   }
+  .phone-status-bar {
+    display: none !important;
+  }
   .phone-mockup {
     height: 100vh !important;
     height: 100dvh !important;
@@ -3550,6 +3553,11 @@ body.is-standalone .master-header {
   display: none !important;
 }
 
+body.is-apk-mode .phone-status-bar,
+body.is-standalone .phone-status-bar {
+  display: none !important;
+}
+
 body.is-apk-mode .phone-mockup,
 body.is-standalone .phone-mockup {
   height: 100vh !important;
@@ -3558,7 +3566,7 @@ body.is-standalone .phone-mockup {
 }
 
 /* Mobile Devices & Smartphones (Full Bleed Native App Experience) */
-@media (max-width: 640px) {
+@media (max-width: 960px) {
   html, body {
     overflow-x: hidden;
     width: 100%;
@@ -3636,10 +3644,9 @@ body.is-standalone .phone-mockup {
     border: none !important;
   }
 
+  /* Hide fake status bar on real mobile screens (real phones have their own OS status bar) */
   .phone-status-bar {
-    padding: 6px 14px 0;
-    height: 34px;
-    font-size: 0.76rem;
+    display: none !important;
   }
 
   .phone-nav-bar {

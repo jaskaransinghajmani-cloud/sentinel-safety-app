@@ -10,14 +10,14 @@ console.log('1. Connecting to Cloud Android Package Builder...');
 
 const payload = JSON.stringify({
   packageId: 'com.sentinel.safetyapp',
-  host: 'https://jaskaransinghajmani-cloud.github.io',
+  host: 'https://sentinel-safety.surge.sh',
   name: 'Sentinel Safety',
   launcherName: 'Sentinel',
   themeColor: '#E53935',
   navigationColor: '#080B11',
   backgroundColor: '#080B11',
-  startUrl: '/sentinel-safety-app/',
-  webManifestUrl: 'https://raw.githubusercontent.com/jaskaransinghajmani-cloud/sentinel-safety-app/main/public/manifest.json',
+  startUrl: '/',
+  webManifestUrl: 'https://sentinel-safety.surge.sh/manifest.json',
   iconUrl: 'https://raw.githubusercontent.com/jaskaransinghajmani-cloud/sentinel-safety-app/main/public/assets/icon-512.png',
   maskableIconUrl: 'https://raw.githubusercontent.com/jaskaransinghajmani-cloud/sentinel-safety-app/main/public/assets/icon-512.png',
   splashScreenFadeOutDuration: 300,
@@ -31,13 +31,13 @@ const payload = JSON.stringify({
     organizationalUnit: 'Security',
     countryCode: 'IN'
   },
-  appVersion: '1.0.4.0',
-  appVersionCode: 5,
-  display: 'standalone',
+  appVersion: '1.0.5.0',
+  appVersionCode: 6,
+  display: 'fullscreen',
   orientation: 'portrait',
   enableNotifications: false,
   enableSiteSettingsShortcut: true,
-  fallbackType: 'customtabs',
+  fallbackType: 'webview',
   features: { locationDelegation: { enabled: true }, playBilling: { enabled: false } },
   includeSourceCode: false
 });
@@ -109,6 +109,16 @@ const req = https.request('https://pwabuilder-cloudapk.azurewebsites.net/generat
           fs.copyFileSync(signedApk, publicAppApk);
           console.log(`👉 Copied signed APK to root: ${rootApk}`);
           console.log(`👉 Copied signed APK to public: ${publicApk}`);
+        }
+
+        const assetLinksFile = path.join(outputDir, 'assetlinks.json');
+        if (fs.existsSync(assetLinksFile)) {
+          const wellKnownDir = path.join(__dirname, 'public', '.well-known');
+          if (!fs.existsSync(wellKnownDir)) {
+            fs.mkdirSync(wellKnownDir, { recursive: true });
+          }
+          fs.copyFileSync(assetLinksFile, path.join(wellKnownDir, 'assetlinks.json'));
+          console.log(`👉 Copied Digital Asset Links to: ${path.join(wellKnownDir, 'assetlinks.json')}`);
         }
 
         console.log('===============================================================');

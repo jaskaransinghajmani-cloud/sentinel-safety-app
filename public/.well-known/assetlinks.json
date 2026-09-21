@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.sentinel.safetyapp",
+        "sha256_cert_fingerprints": ["E2:28:86:15:1E:EA:3B:4D:44:15:38:26:DE:62:C4:29:8F:D5:AC:05:62:81:D0:5B:39:DE:EC:2B:8C:87:75:83"]
+      }
+    }]
