@@ -1591,6 +1591,109 @@ body {
   transform: scale(1.06);
 }
 
+/* Full-Volume Emergency Siren Banner (Screen 02) */
+.emergency-siren-banner {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(220, 38, 38, 0.45) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1.5px solid rgba(245, 158, 11, 0.6);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 8px 24px -4px rgba(245, 158, 11, 0.35);
+}
+
+.emergency-siren-banner:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(220, 38, 38, 0.55) 100%);
+  border-color: #F59E0B;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(245, 158, 11, 0.5);
+}
+
+.emergency-siren-banner.active-siren {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.9) 0%, rgba(185, 28, 28, 0.95) 100%) !important;
+  border-color: #FFFFFF !important;
+  animation: siren-button-pulse 0.5s infinite alternate;
+  box-shadow: 0 0 35px rgba(239, 68, 68, 0.9) !important;
+}
+
+@keyframes siren-button-pulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.02); filter: brightness(1.25); }
+}
+
+.emergency-siren-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #F59E0B, #DC2626);
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.6);
+  animation: pulse-badge 1.8s infinite ease-in-out;
+}
+
+.emergency-siren-info {
+  flex: 1;
+  text-align: left;
+}
+
+.emergency-siren-title {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  color: #FFFFFF;
+  letter-spacing: -0.01em;
+}
+
+.emergency-siren-sub {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.9);
+  margin-top: 2px;
+}
+
+.emergency-siren-action-btn {
+  background: #FFFFFF;
+  color: #B45309;
+  font-family: var(--font-heading);
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 8px 18px;
+  border-radius: var(--radius-full);
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+  transition: all var(--transition-fast);
+}
+
+.emergency-siren-action-btn:hover {
+  background: #FEF3C7;
+  transform: scale(1.06);
+}
+
+/* Strobe Alert Effect when Siren is active */
+@keyframes siren-strobe-overlay {
+  0%, 100% {
+    box-shadow: inset 0 0 70px rgba(239, 68, 68, 0.95);
+  }
+  50% {
+    box-shadow: inset 0 0 70px rgba(255, 255, 255, 0.95);
+  }
+}
+
+body.is-siren-active .phone-screen {
+  animation: siren-strobe-overlay 0.35s infinite alternate !important;
+}
+
 /* Quick Action Cards Grid */
 .quick-tiles-grid {
   display: grid;

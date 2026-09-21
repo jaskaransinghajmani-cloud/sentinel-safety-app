@@ -3,6 +3,6 @@
       "target": {
         "namespace": "android_app",
         "package_name": "com.sentinel.safetyapp",
-        "sha256_cert_fingerprints": ["17:4D:00:72:DB:A2:0C:5C:3F:88:96:98:79:42:C1:94:EF:53:0D:25:E5:F6:E4:26:1C:47:27:97:96:16:7B:29"]
+        "sha256_cert_fingerprints": ["13:0B:93:FB:87:C5:10:87:D4:16:36:9C:B7:D4:F9:17:45:4A:F4:09:CB:19:E8:E6:EC:A1:4D:12:BB:5E:62:FD"]
       }
     }]

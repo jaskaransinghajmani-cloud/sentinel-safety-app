@@ -327,8 +327,22 @@ function initBackgroundAndLockScreenSOS() {
     }
   });
 
-  // 4. Request Screen Wake Lock when app is active
+  // 4. Power button 5-second rapid toggle detection on lock screen
+  let powerBtnEvents = [];
   document.addEventListener('visibilitychange', () => {
+    const now = Date.now();
+    powerBtnEvents.push(now);
+    // Keep state change events within the last 5 seconds
+    powerBtnEvents = powerBtnEvents.filter(t => now - t <= 5000);
+
+    // 4 state changes = screen off, on, off, on (2-3 rapid presses of the power button within 5 seconds)
+    if (powerBtnEvents.length >= 4) {
+      powerBtnEvents = [];
+      console.log('[Sentinel] Power button rapid sequence detected! Starting Emergency SOS...');
+      showToast('⚡ Power Button 5-Sec Trigger: Starting Emergency SOS...');
+      triggerSos();
+    }
+
     if (document.visibilityState === 'visible') {
       requestScreenWakeLock();
     }
@@ -361,6 +375,144 @@ async function requestScreenWakeLock() {
     }
   }
 }
+
+// ==========================================
+// FULL-VOLUME EMERGENCY SIREN & STROBE ALARM
+// ==========================================
+let sirenOscillator = null;
+let sirenGainNode = null;
+let sirenInterval = null;
+let isSirenPlaying = false;
+
+window.toggleEmergencySiren = function() {
+  if (isSirenPlaying) {
+    stopEmergencySiren();
+  } else {
+    startEmergencySiren();
+  }
+};
+
+window.startEmergencySiren = function() {
+  if (isSirenPlaying) return;
+  isSirenPlaying = true;
+  document.body.classList.add('is-siren-active');
+
+  const sirenBtn = document.getElementById('btnEmergencySiren');
+  const sirenTitle = document.getElementById('sirenBtnTitle');
+  const sirenSub = document.getElementById('sirenBtnSub');
+  const sirenBadge = document.getElementById('sirenBadgeAction');
+
+  if (sirenBtn) sirenBtn.classList.add('active-siren');
+  if (sirenTitle) sirenTitle.textContent = '🚨 SIREN BLASTING AT FULL VOLUME!';
+  if (sirenSub) sirenSub.textContent = 'Tap to immediately silence the alarm';
+  if (sirenBadge) {
+    sirenBadge.textContent = 'STOP';
+    sirenBadge.style.background = '#DC2626';
+    sirenBadge.style.color = '#FFFFFF';
+  }
+
+  showToast('🚨 LOUD EMERGENCY SIREN ACTIVATED AT FULL VOLUME!');
+
+  // 1. Hardware vibration
+  if ('vibrate' in navigator) {
+    navigator.vibrate([600, 200, 600, 200, 600, 200, 600]);
+  }
+
+  // 2. Web Audio API siren synthesis
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!state.audioCtx) {
+      state.audioCtx = new AudioContext();
+    }
+    if (state.audioCtx.state === 'suspended') {
+      state.audioCtx.resume();
+    }
+
+    const ctx = state.audioCtx;
+    sirenOscillator = ctx.createOscillator();
+    sirenGainNode = ctx.createGain();
+
+    sirenOscillator.type = 'sawtooth';
+    sirenOscillator.frequency.setValueAtTime(650, ctx.currentTime);
+
+    // 100% full volume output
+    sirenGainNode.gain.setValueAtTime(1.0, ctx.currentTime);
+
+    sirenOscillator.connect(sirenGainNode);
+    sirenGainNode.connect(ctx.destination);
+    sirenOscillator.start();
+
+    // Oscillate between 650Hz and 1350Hz (police/alarm wail)
+    let rising = true;
+    let currentFreq = 650;
+    sirenInterval = setInterval(() => {
+      if (!isSirenPlaying || !sirenOscillator) return;
+      if (rising) {
+        currentFreq += 70;
+        if (currentFreq >= 1350) rising = false;
+      } else {
+        currentFreq -= 70;
+        if (currentFreq <= 650) rising = true;
+      }
+      sirenOscillator.frequency.setValueAtTime(currentFreq, ctx.currentTime);
+      if ('vibrate' in navigator && Math.random() > 0.6) {
+        navigator.vibrate(300);
+      }
+    }, 45);
+
+  } catch (err) {
+    console.error('Failed to play siren sound:', err);
+  }
+
+  // Update Lock-Screen MediaSession
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: '🚨 LOUD EMERGENCY SIREN ACTIVE',
+        artist: 'Sentinel Full-Volume Alarm Blasting',
+        album: 'Tap to SILENCE Alarm'
+      });
+    } catch (e) {}
+  }
+};
+
+window.stopEmergencySiren = function() {
+  isSirenPlaying = false;
+  document.body.classList.remove('is-siren-active');
+
+  const sirenBtn = document.getElementById('btnEmergencySiren');
+  const sirenTitle = document.getElementById('sirenBtnTitle');
+  const sirenSub = document.getElementById('sirenBtnSub');
+  const sirenBadge = document.getElementById('sirenBadgeAction');
+
+  if (sirenBtn) sirenBtn.classList.remove('active-siren');
+  if (sirenTitle) sirenTitle.textContent = '🚨 Sound Loud Alarm Siren';
+  if (sirenSub) sirenSub.textContent = 'Piercing 100% full-volume alarm & strobe to deter attackers';
+  if (sirenBadge) {
+    sirenBadge.textContent = 'SIREN';
+    sirenBadge.style.background = '#FFFFFF';
+    sirenBadge.style.color = '#B45309';
+  }
+
+  if (sirenInterval) {
+    clearInterval(sirenInterval);
+    sirenInterval = null;
+  }
+
+  if (sirenOscillator) {
+    try {
+      sirenOscillator.stop();
+      sirenOscillator.disconnect();
+    } catch (e) {}
+    sirenOscillator = null;
+  }
+
+  if ('vibrate' in navigator) {
+    navigator.vibrate(0);
+  }
+
+  showToast('Siren silenced.');
+};
 
 
 const EMERGENCY_REGIONS = {
