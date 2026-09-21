@@ -76,11 +76,6 @@
         </div>
       </div>
 
-      <!-- Download Android APK Button -->
-      <a href="https://github.com/jaskaransinghajmani-cloud/sentinel-safety-app/raw/main/sentinel.apk" download="Sentinel-Safety.apk" class="apk-download-btn" id="apkDownloadBtn" title="Download Android APK">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>Download APK</span>
-      </a>
 
       <!-- View Mode: Single Phone Simulator vs All 8 Screens Gallery -->
       <button type="button" class="view-toggle-btn" id="viewToggleBtn">
@@ -319,24 +314,24 @@
               </div>
 
               <!-- 1-TAP DIRECT POLICE CALL BANNER -->
-              <div class="direct-police-banner" id="btnDirectPoliceCall" onclick="callPoliceDirectly(state.policeNumber || '911')">
+              <a href="tel:112" class="direct-police-banner" id="btnDirectPoliceCall" onclick="callPoliceDirectly(state.policeNumber || '112')" style="text-decoration: none; color: inherit;">
                 <div class="direct-police-icon">
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/><path d="M14.05 2a9 9 0 0 1 8 7.94"/><path d="M14.05 6A5 5 0 0 1 18 10"/></svg>
                 </div>
                 <div class="direct-police-info">
-                  <div class="direct-police-title" id="homePoliceBannerTitle">Call Emergency Dispatch (911)</div>
+                  <div class="direct-police-title" id="homePoliceBannerTitle">Call Police Emergency (112)</div>
                   <div class="direct-police-sub">1-Tap instant emergency connection</div>
                 </div>
-                <button type="button" class="direct-police-dial-btn" aria-label="Direct Call Police">CALL</button>
-              </div>
+                <span class="direct-police-dial-btn" aria-label="Direct Call Police">CALL</span>
+              </a>
 
-              <!-- 1-TAP DIRECT SMS ALERT BANNER (DON'T ASK) -->
-              <div class="direct-sms-banner" id="btnDirectSmsAlert" onclick="sendEmergencySms('7804892413')">
+              <!-- 1-TAP DIRECT SMS ALERT BANNER (SEND TO CIRCLE) -->
+              <div class="direct-sms-banner" id="btnDirectSmsAlert" onclick="sendEmergencyToCircle()">
                 <div class="direct-sms-icon">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 </div>
                 <div class="direct-sms-info">
-                  <div class="direct-sms-title">Direct SMS to 780-489-2413</div>
+                  <div class="direct-sms-title" id="homeSmsBannerTitle">Send Emergency Alert to Circle</div>
                   <div class="direct-sms-sub">Instant 1-tap message with live GPS location</div>
                 </div>
                 <button type="button" class="direct-sms-send-btn" aria-label="Direct Send SMS">SEND</button>
@@ -491,15 +486,19 @@
 
               <!-- Emergency Speed Dials & Direct Police Button -->
               <div class="sos-emergency-actions">
-                <button type="button" class="btn-call-police-emergency" id="btnCallPoliceEmergency" onclick="callPoliceDirectly(state.policeNumber || '911')">
+                <button type="button" class="btn-call-police-emergency" id="btnCallPoliceEmergency" onclick="callPoliceDirectly(state.policeNumber || '112')">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                  <span id="btnCallPoliceText">🚨 Call Emergency Dispatch Now (911)</span>
+                  <span id="btnCallPoliceText">🚨 Call Police Emergency Now (112)</span>
                 </button>
-                <button type="button" class="btn-send-sms-emergency" onclick="sendEmergencySms(state.userAlertNumber || '7804892413')">
+                <button type="button" class="btn-send-sms-emergency" id="btnSendCircleSmsEmergency" onclick="sendEmergencyToCircle()">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                  <span>📲 Direct Send SMS with Live Location</span>
+                  <span>📲 Send Emergency SMS to All Circle</span>
                 </button>
                 <div class="sos-secondary-links">
+                  <a class="speeddial-link" onclick="sendWhatsAppEmergencyToCircle()" style="color: #25D366; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19.01L7.55 18.83L4.43 19.65L5.26 16.61L5.06 16.29C4.24 14.99 3.81 13.47 3.81 11.91C3.81 7.37 7.5 3.67 12.05 3.67Z"/></svg>
+                    Share Alert via WhatsApp
+                  </a>
                   <a class="speeddial-link" onclick="triggerFakeCall(0)">Start a fake call</a>
                 </div>
               </div>
@@ -715,7 +714,7 @@
               <!-- ANDROID APP DOWNLOAD -->
               <div class="settings-section-title">Android App</div>
               <div class="settings-list">
-                <a href="https://github.com/jaskaransinghajmani-cloud/sentinel-safety-app/raw/main/sentinel.apk" download="Sentinel-Safety.apk" class="settings-row" style="text-decoration: none; color: inherit;">
+                <a href="sentinel.apk" download="Sentinel-Safety.apk" class="settings-row" style="text-decoration: none; color: inherit;">
                   <div>
                     <div style="font-weight: 700; color: var(--accent-safe); display: flex; align-items: center; gap: 6px;">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

@@ -325,11 +325,13 @@ app.post('/api/journal', (req, res) => {
 
 // 7. Emergency SOS Trigger & Cancel
 app.post('/api/sos/trigger', (req, res) => {
-  const { lat, lng, reason } = req.body;
+  const { lat, lng, reason, circle } = req.body;
   const latitude = lat || 12.9716;
   const longitude = lng || 77.5946;
   const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
   const alertText = `[EMERGENCY SOS ALERT] I am in distress and need urgent help! My live location: ${mapsLink}`;
+
+  const activeCircle = (Array.isArray(circle) && circle.length > 0) ? circle : db.guardians;
 
   db.activeAlert = {
     alertId: 'alert-' + Date.now(),
@@ -337,26 +339,29 @@ app.post('/api/sos/trigger', (req, res) => {
     coordinates: { lat: latitude, lng: longitude },
     reason: reason || 'SOS button held for 3 seconds',
     status: 'ACTIVE',
-    smsBroadcasts: db.guardians.map(g => ({
+    smsBroadcasts: activeCircle.map(g => ({
       recipient: g.name,
-      phone: g.phone,
+      phone: g.phone || 'N/A',
       message: alertText,
       status: 'SENT'
     })),
-    notifiedGuardians: db.guardians.map(g => ({
+    notifiedGuardians: activeCircle.map(g => ({
       name: g.name,
-      phone: g.phone,
-      status: g.mode === 'Delayed' ? 'Delayed (notifying in 2 min)' : 'Notified · 0:02 ago',
+      phone: g.phone || '',
+      status: g.mode === 'Delayed' ? 'Delayed (notifying in 2 min)' : 'Notified · 0:01 ago',
       seen: g.id === 'g0' || g.name === 'Rekha' ? true : false
     }))
   };
 
-  console.log(`[SOS DISPATCH] Emergency SMS Alert sent to ${db.guardians[0].phone} (${db.guardians[0].name})`);
+  console.log(`[SOS DISPATCH] Emergency broadcast initiated to ${activeCircle.length} circle members:`);
+  activeCircle.forEach((g, i) => {
+    console.log(`  [${i + 1}] Alert SMS sent to ${g.phone || 'N/A'} (${g.name})`);
+  });
   console.log(`[SOS DISPATCH] SMS content: "${alertText}"`);
 
   res.json({
     success: true,
-    message: 'Emergency SOS activated! Alert SMS dispatched to 7804892413 and trusted circle.',
+    message: `Emergency SOS activated! Alert SMS dispatched to all ${activeCircle.length} circle members.`,
     alert: db.activeAlert
   });
 });
@@ -371,7 +376,7 @@ app.post('/api/sos/cancel', (req, res) => {
   });
 });
 
-// 7.1 Direct SMS Dispatch API (Direct Send Without Asking)
+// 7.1 Direct SMS Dispatch API (Single Contact)
 app.post('/api/sms/send-direct', (req, res) => {
   const { to, message } = req.body;
   const recipient = to || "7804892413";
@@ -385,6 +390,39 @@ app.post('/api/sms/send-direct', (req, res) => {
     success: true,
     status: 'SENT_DIRECT',
     recipient: recipient,
+    message: text,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 7.2 Batch Circle SMS Dispatch API (All Circle Members)
+app.post('/api/sms/send-circle', (req, res) => {
+  const { circle, message, lat, lng } = req.body;
+  const latitude = lat || 12.9716;
+  const longitude = lng || 77.5946;
+  const mapsLink = `https://maps.google.com/?q=${latitude},${longitude}`;
+  const text = message || `EMERGENCY SOS ALERT! I need immediate help. My current location: ${mapsLink}`;
+
+  const recipients = (Array.isArray(circle) && circle.length > 0) ? circle : db.guardians;
+
+  console.log(`[CIRCLE SMS DISPATCH] Auto-dispatched emergency alert to all ${recipients.length} members:`);
+  const broadcasts = recipients.map(r => {
+    const phone = r.phone || 'Unknown';
+    const name = r.name || 'Guardian';
+    console.log(` > Dispatched SMS to ${name} (${phone})`);
+    return {
+      name,
+      phone,
+      status: 'SENT',
+      timestamp: new Date().toISOString()
+    };
+  });
+
+  res.json({
+    success: true,
+    status: 'SENT_CIRCLE',
+    count: broadcasts.length,
+    broadcasts,
     message: text,
     timestamp: new Date().toISOString()
   });

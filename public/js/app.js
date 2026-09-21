@@ -4,6 +4,18 @@
  * Audio Synthesis, Fake Call Simulator, and SOS Emergency Dispatch
  */
 
+// Detect if running inside phone APK / PWA standalone mode
+if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone || (document.referrer && document.referrer.includes('android-app://'))) {
+  document.addEventListener('DOMContentLoaded', () => {
+    document.body.classList.add('is-apk-mode');
+    document.body.classList.add('is-standalone');
+  });
+}
+
+// Auto-detect default region (India timezone offset -330 is +05:30)
+const detectedTzOffset = new Date().getTimezoneOffset();
+const detectedRegion = (detectedTzOffset <= -300 && detectedTzOffset >= -360) ? 'IN' : 'US_CA';
+
 // Application State
 const state = {
   activeScreen: 's02', // Default to Home Dashboard for instant wow factor
@@ -21,7 +33,7 @@ const state = {
   countdownTimer: null,
   countdownSeconds: 3,
   autoCallPoliceOnSos: true,
-  policeNumber: '911',
+  policeNumber: detectedRegion === 'IN' ? '112' : '911',
   userAlertNumber: '7804892413',
   fakeCallTimer: null,
   audioCtx: null
@@ -211,6 +223,18 @@ function requestUserGeolocation() {
 }
 
 const EMERGENCY_REGIONS = {
+  IN: {
+    label: "India",
+    policeNumber: "112",
+    autoDialText: "Directly calls 112 (National Emergency & Police) when SOS countdown ends",
+    policeBtnText: "🚨 Call Police Emergency (112)",
+    dials: [
+      { name: "Police & National Emergency (ERSS)", number: "112", desc: "Unified national emergency & police response", badge: "112" },
+      { name: "Police Control Room Helpline", number: "100", desc: "Traditional police response", badge: "100" },
+      { name: "Women Helpline (National)", number: "1091", desc: "24/7 National Commission for Women", badge: "1091" },
+      { name: "Childline Emergency", number: "1098", desc: "24/7 crisis support for youth", badge: "1098" }
+    ]
+  },
   US_CA: {
     label: "US & Canada",
     policeNumber: "911",
@@ -221,18 +245,6 @@ const EMERGENCY_REGIONS = {
       { name: "Suicide & Crisis Lifeline", number: "988", desc: "Free & confidential 24/7 support", badge: "988" },
       { name: "National Domestic Violence Hotline", number: "1-800-799-7233", desc: "Confidential crisis intervention & safety", badge: "24/7" },
       { name: "Alberta Crisis Support Services", number: "211", desc: "Community resources & crisis assistance", badge: "211" }
-    ]
-  },
-  IN: {
-    label: "India",
-    policeNumber: "100",
-    autoDialText: "Directly calls 100 / 112 when SOS countdown ends",
-    policeBtnText: "🚨 Call Police Emergency (100)",
-    dials: [
-      { name: "Police Emergency", number: "100", desc: "National police response", badge: "100" },
-      { name: "National Emergency Number", number: "112", desc: "All-in-one emergency helpline", badge: "112" },
-      { name: "Women Helpline (National)", number: "1091", desc: "24/7 National Commission for Women", badge: "1091" },
-      { name: "Childline Emergency", number: "1098", desc: "24/7 crisis support for youth", badge: "1098" }
     ]
   },
   UK: {
@@ -250,7 +262,7 @@ const EMERGENCY_REGIONS = {
 };
 
 window.changeEmergencyRegion = function(regionCode) {
-  if (!EMERGENCY_REGIONS[regionCode]) regionCode = 'US_CA';
+  if (!EMERGENCY_REGIONS[regionCode]) regionCode = detectedRegion;
   if (state.profile) {
     state.profile.region = regionCode;
     localStorage.setItem('sentinel_profile', JSON.stringify(state.profile));
@@ -261,7 +273,7 @@ window.changeEmergencyRegion = function(regionCode) {
 };
 
 function updateEmergencyDials(regionCode) {
-  const reg = EMERGENCY_REGIONS[regionCode] || EMERGENCY_REGIONS.US_CA;
+  const reg = EMERGENCY_REGIONS[regionCode] || EMERGENCY_REGIONS[detectedRegion] || EMERGENCY_REGIONS.IN;
   state.policeNumber = reg.policeNumber;
 
   const autoSub = document.getElementById('autoDialSubtext');
@@ -271,7 +283,10 @@ function updateEmergencyDials(regionCode) {
   if (callPoliceBtn) callPoliceBtn.textContent = reg.policeBtnText;
 
   const homePoliceTitle = document.getElementById('homePoliceBannerTitle');
-  if (homePoliceTitle) homePoliceTitle.textContent = `Call Emergency Dispatch (${reg.policeNumber})`;
+  if (homePoliceTitle) homePoliceTitle.textContent = `Call Police Emergency (${reg.policeNumber})`;
+
+  const homePoliceBanner = document.getElementById('btnDirectPoliceCall');
+  if (homePoliceBanner) homePoliceBanner.setAttribute('href', `tel:${reg.policeNumber}`);
 
   const container = document.getElementById('emergencyNumbersList');
   if (!container) return;
@@ -297,7 +312,7 @@ const DEFAULT_PROFILE = {
   status: "Protected",
   safeWord: "Is the kettle on?",
   sosNumber: "7804892413",
-  region: "US_CA",
+  region: detectedRegion,
   settings: {
     autoRecordSOS: true,
     volumeTrigger: true,
@@ -306,9 +321,9 @@ const DEFAULT_PROFILE = {
     communityPosts: "Anonymous"
   },
   emergencyContacts: {
-    police: "911",
-    womenHelpline: "988",
-    emergency: "911"
+    police: detectedRegion === 'IN' ? "112" : "911",
+    womenHelpline: "1091",
+    emergency: detectedRegion === 'IN' ? "112" : "911"
   }
 };
 
@@ -1099,27 +1114,10 @@ async function triggerSos() {
   const pillElem = document.getElementById('countdownTopPill');
 
   if (numElem) numElem.textContent = '3';
-  if (pillElem) pillElem.textContent = 'Sending in 3...';
+  if (pillElem) pillElem.textContent = '🚨 Auto-dialing Police in 3s...';
 
-  // Directly send message to 7804892413 immediately without asking
-  sendEmergencySms(state.userAlertNumber || '7804892413');
-
-  // Trigger backend API
-  try {
-    const res = await fetch('/api/sos/trigger', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lat: userLiveCoords[0],
-        lng: userLiveCoords[1],
-        reason: 'Hold SOS trigger confirmed'
-      })
-    });
-    const result = await res.json();
-    console.log('Emergency broadcast initiated:', result);
-  } catch (err) {
-    console.error('Failed to report SOS to backend', err);
-  }
+  // 1. AUTOMATICALLY SEND EMERGENCY MESSAGE TO THE ENTIRE CIRCLE IMMEDIATELY
+  sendEmergencyToCircle(userLiveCoords[0], userLiveCoords[1]);
 
   if (state.countdownTimer) clearInterval(state.countdownTimer);
 
@@ -1127,19 +1125,19 @@ async function triggerSos() {
     state.countdownSeconds--;
     if (state.countdownSeconds > 0) {
       if (numElem) numElem.textContent = state.countdownSeconds;
-      if (pillElem) pillElem.textContent = `Sending in ${state.countdownSeconds}...`;
+      if (pillElem) pillElem.textContent = `🚨 Auto-dialing Police in ${state.countdownSeconds}s...`;
       playSound('click');
     } else {
       clearInterval(state.countdownTimer);
       if (numElem) numElem.textContent = '!';
-      if (pillElem) pillElem.textContent = 'Alert broadcasted!';
-      showToast('Emergency SOS & SMS alert dispatched to 780-489-2413 and your circle!');
+      if (pillElem) pillElem.textContent = `🚨 Calling Police (${state.policeNumber || '112'})!`;
+      showToast(`🚨 Emergency broadcast active! Auto-dialing Police (${state.policeNumber || '112'})...`);
 
-      // Auto-call police directly if enabled
+      // 2. AUTOMATICALLY CALL POLICE DIRECTLY ON SOS
       if (state.autoCallPoliceOnSos) {
         setTimeout(() => {
-          callPoliceDirectly(state.policeNumber || '911');
-        }, 500);
+          callPoliceDirectly(state.policeNumber || '112');
+        }, 400);
       }
     }
   }, 1000);
@@ -1163,37 +1161,107 @@ async function cancelSos() {
   switchScreen('s02');
 }
 
-// Direct Police Calling Helper
-window.callPoliceDirectly = function(number = state.policeNumber || '911') {
+// Direct Police Calling Helper (Auto-Call Police)
+window.callPoliceDirectly = function(number = state.policeNumber || '112') {
   playSound('alert');
-  showToast(`Dialing Emergency Dispatch (${number})...`);
+  showToast(`🚨 Calling Police Emergency (${number})...`);
   console.log(`[Emergency Dispatch] Direct police call placed to: ${number}`);
-  // Short delay to allow alert audio & toast UI to render before browser initiates tel protocol
-  setTimeout(() => {
-    window.location.href = `tel:${number}`;
-  }, 350);
+  // Immediately navigate without delay to preserve native user gesture activation
+  window.location.href = `tel:${number}`;
 };
 
-// Emergency Direct SMS Dispatch Helper (Zero Prompts / Don't Ask)
-window.sendEmergencySms = function(number = state.userAlertNumber || '7804892413', lat = userLiveCoords[0], lng = userLiveCoords[1]) {
+// Automatic Emergency Message Dispatch to ALL Circle Members
+window.sendEmergencyToCircle = function(lat = userLiveCoords[0], lng = userLiveCoords[1]) {
   const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
-  const rawMessage = `EMERGENCY SOS ALERT! I need immediate help. My current location: ${mapLink}`;
+  const userName = (state.profile && state.profile.name) ? state.profile.name : 'Sentinel User';
+  const rawMessage = `🚨 EMERGENCY SOS ALERT! ${userName} is in distress and needs urgent help! Live GPS Location: ${mapLink}`;
   const message = encodeURIComponent(rawMessage);
 
-  // Directly dispatch to backend API without asking
-  fetch('/api/sms/send-direct', {
+  // 1. Gather all circle contacts from state
+  const circleContacts = (Array.isArray(state.guardians) && state.guardians.length > 0)
+    ? state.guardians
+    : DEFAULT_GUARDIANS;
+
+  const phoneNumbers = circleContacts
+    .map(g => (g.phone || '').replace(/[^\d+]/g, ''))
+    .filter(Boolean);
+
+  // Ensure userAlertNumber is in list if valid
+  if (state.userAlertNumber) {
+    const cleanAlert = state.userAlertNumber.replace(/[^\d+]/g, '');
+    if (cleanAlert && !phoneNumbers.includes(cleanAlert)) {
+      phoneNumbers.unshift(cleanAlert);
+    }
+  }
+
+  // 2. Dispatch batch emergency alert to backend /api/sos/trigger & /api/sms/send-circle
+  fetch('/api/sos/trigger', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to: number, message: rawMessage })
-  }).catch(e => console.warn('Direct SMS backend dispatch failed', e));
+    body: JSON.stringify({
+      lat,
+      lng,
+      reason: 'Hold SOS trigger confirmed',
+      circle: circleContacts
+    })
+  }).catch(e => console.warn('Failed to report SOS to backend', e));
 
-  showToast(`Direct message sent to ${number}!`);
-  console.log(`[Direct SMS] Dispatched immediately to ${number} without asking`);
+  fetch('/api/sms/send-circle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      circle: circleContacts,
+      message: rawMessage,
+      lat,
+      lng
+    })
+  }).catch(e => console.warn('Direct Circle SMS backend dispatch failed', e));
 
-  // Directly launch device SMS composer without asking
-  setTimeout(() => {
-    window.location.href = `sms:${number}?body=${message}`;
-  }, 200);
+  // Also dispatch direct individual SMS record for each circle member
+  phoneNumbers.forEach(phone => {
+    fetch('/api/sms/send-direct', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: phone, message: rawMessage })
+    }).catch(e => console.warn('Individual SMS dispatch failed', e));
+  });
+
+  // 3. Update Screen 05 UI dynamically
+  renderSosGuardiansList(true);
+
+  const sosCountdownSub = document.getElementById('sosCountdownSub');
+  if (sosCountdownSub) {
+    const names = circleContacts.map(g => g.name).slice(0, 4).join(', ');
+    sosCountdownSub.innerHTML = `Emergency SMS alert & live GPS location dispatched to <strong>${escapeHtml(names)}</strong>. Auto-dialing Police (${state.policeNumber || '112'}).`;
+  }
+
+  showToast(`📲 Emergency message dispatched to ${phoneNumbers.length} circle members!`);
+  console.log(`[Circle Dispatch] Emergency SMS auto-dispatched to circle:`, phoneNumbers);
+
+  // 4. If mobile device, launch native multi-contact SMS intent
+  if (phoneNumbers.length > 0) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const separator = isIOS ? ';' : ',';
+    const targetPhones = phoneNumbers.join(separator);
+    setTimeout(() => {
+      window.location.href = `sms:${targetPhones}?body=${message}`;
+    }, 250);
+  }
+};
+
+// WhatsApp Emergency Sharing Helper
+window.sendWhatsAppEmergencyToCircle = function(lat = userLiveCoords[0], lng = userLiveCoords[1]) {
+  const mapLink = `https://maps.google.com/?q=${lat},${lng}`;
+  const userName = (state.profile && state.profile.name) ? state.profile.name : 'Sentinel User';
+  const rawMessage = `🚨 *EMERGENCY SOS ALERT!*\n${userName} is in distress and needs urgent help!\n\n📍 *Live GPS Location:*\n${mapLink}\n\nPlease respond immediately or call emergency services!`;
+  const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(rawMessage)}`;
+  window.open(url, '_blank');
+  showToast('Opening WhatsApp to share emergency alert with circle...');
+};
+
+// Single SMS Dispatch Helper (fallback compatibility)
+window.sendEmergencySms = function(number = state.userAlertNumber || '7804892413', lat = userLiveCoords[0], lng = userLiveCoords[1]) {
+  sendEmergencyToCircle(lat, lng);
 };
 
 window.toggleAutoCallSetting = function(enabled) {
@@ -1975,17 +2043,23 @@ function renderWatchersRow() {
   `;
 }
 
-function renderSosGuardiansList() {
+function renderSosGuardiansList(dispatched = false) {
   const list = document.querySelector('.sos-dispatched-list');
   if (!list) return;
 
-  list.innerHTML = state.guardians.map((g, idx) => {
+  const contacts = (Array.isArray(state.guardians) && state.guardians.length > 0)
+    ? state.guardians
+    : DEFAULT_GUARDIANS;
+
+  list.innerHTML = contacts.map((g, idx) => {
     const isMe = g.id === 'g0';
+    const statusText = dispatched ? '● SMS Dispatched · Just now' : (isMe ? '● Alert Dispatched' : (idx === 1 ? '● Seen' : 'Notified · 0:02 ago'));
+    const statusClass = (dispatched || isMe || idx === 1) ? 'seen' : '';
     return `
       <div class="dispatched-item ${isMe ? 'highlight-recipient' : ''}">
-        <span>${isMe ? '📱 ' : ''}${escapeHtml(g.name)} ${g.phone ? `(${escapeHtml(g.phone)})` : ''}</span>
-        <span class="dispatched-status ${isMe || idx === 1 ? 'seen' : ''}">
-          ${isMe ? '● Alert Dispatched' : (idx === 1 ? '● Seen' : 'Notified · 0:02 ago')}
+        <span>${isMe ? '📱 ' : '👤 '}${escapeHtml(g.name)} ${g.phone ? `(${escapeHtml(g.phone)})` : ''}</span>
+        <span class="dispatched-status ${statusClass}">
+          ${statusText}
         </span>
       </div>
     `;

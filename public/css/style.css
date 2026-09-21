@@ -3517,21 +3517,44 @@ input:checked + .toggle-slider:before {
 /* Responsive queries: Tablet & Desktop */
 @media (max-width: 860px) {
   .master-header {
-    padding: 10px 16px;
-    gap: 10px;
-  }
-  .header-left {
-    gap: 8px;
-  }
-  .brand-tag {
-    display: none;
-  }
-  .controls-bar {
-    gap: 8px;
+    display: none !important;
   }
   .app-container {
-    padding: 10px 10px 40px;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
   }
+  .apk-download-btn {
+    display: none !important;
+  }
+}
+
+/* Standalone Installed PWA / Android APK Mode (Full Bleed Native App) */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .master-header {
+    display: none !important;
+  }
+  .apk-download-btn {
+    display: none !important;
+  }
+  .phone-mockup {
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
+  }
+}
+
+body.is-apk-mode .master-header,
+body.is-standalone .master-header {
+  display: none !important;
+}
+
+body.is-apk-mode .phone-mockup,
+body.is-standalone .phone-mockup {
+  height: 100vh !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
 }
 
 /* Mobile Devices & Smartphones (Full Bleed Native App Experience) */
@@ -3544,8 +3567,7 @@ input:checked + .toggle-slider:before {
   }
 
   .master-header {
-    padding: 8px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: none !important;
   }
 
   .brand-badge h1 {
@@ -3558,7 +3580,11 @@ input:checked + .toggle-slider:before {
   }
 
   .view-toggle-btn {
-    display: none;
+    display: none !important;
+  }
+
+  .apk-download-btn {
+    display: none !important;
   }
 
   .app-container {
@@ -3592,9 +3618,9 @@ input:checked + .toggle-slider:before {
   .phone-mockup {
     width: 100% !important;
     max-width: 100% !important;
-    height: calc(100vh - 54px) !important;
-    height: calc(100dvh - 54px) !important;
-    min-height: calc(100dvh - 54px) !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    min-height: 100dvh !important;
     border-radius: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;

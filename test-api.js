@@ -136,6 +136,33 @@ async function runTests() {
     }
   });
 
+  // 7. Circle Emergency SMS Dispatch
+  await test('POST /api/sms/send-circle sends batch emergency SMS to all circle members', async () => {
+    const sampleCircle = [
+      { id: 'g1', name: 'Amma', phone: '+91 98201 11223' },
+      { id: 'g2', name: 'Rekha', phone: '+91 98202 33445' }
+    ];
+    const res = await request('POST', '/api/sms/send-circle', {
+      circle: sampleCircle,
+      message: 'EMERGENCY SOS ALERT! Test message',
+      lat: 12.9716,
+      lng: 77.5946
+    });
+    if (res.status !== 200 || !res.data.success || res.data.count !== 2) {
+      throw new Error(`Circle SMS dispatch failed: ${JSON.stringify(res.data)}`);
+    }
+  });
+
+  await test('POST /api/sms/send-direct sends emergency SMS to single number', async () => {
+    const res = await request('POST', '/api/sms/send-direct', {
+      to: '112',
+      message: 'Police emergency test dispatch'
+    });
+    if (res.status !== 200 || !res.data.success || res.data.status !== 'SENT_DIRECT') {
+      throw new Error(`Direct SMS dispatch failed: ${JSON.stringify(res.data)}`);
+    }
+  });
+
   console.log('----------------------------------------------------');
   console.log(`Test Results: ${passed} passed, ${failed} failed`);
   if (failed > 0) {
@@ -157,6 +184,8 @@ client.connect(3000, '127.0.0.1', () => {
 
 client.on('error', () => {
   console.log('Starting internal Express server for testing...');
-  require('./server.js');
-  setTimeout(runTests, 1000);
+  const app = require('./server.js');
+  const server = app.listen(3000, '127.0.0.1', () => {
+    runTests();
+  });
 });
