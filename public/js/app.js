@@ -63,6 +63,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupHardwareButtons();
   setupSettingsToggles();
   
+  // Initialize continuous background location, lock-screen SOS & shake trigger
+  initBackgroundAndLockScreenSOS();
+  
   // Request user's live GPS location for real map centering
   requestUserGeolocation();
 
@@ -192,12 +195,25 @@ async function fetchConfig() {
   }
 }
 
+let bgWatchId = null;
 function requestUserGeolocation() {
   if ('geolocation' in navigator) {
+    const handleLocationUpdate = (pos) => {
+      userLiveCoords = [pos.coords.latitude, pos.coords.longitude];
+      userHasLiveGps = true;
+      localStorage.setItem('sentinel_last_coords', JSON.stringify(userLiveCoords));
+
+      if (leafletUserMarker) {
+        leafletUserMarker.setLatLng(userLiveCoords);
+      }
+      if (leafletTripMap && state.tripState && state.tripState.active) {
+        renderTripMap();
+      }
+    };
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        userLiveCoords = [pos.coords.latitude, pos.coords.longitude];
-        userHasLiveGps = true;
+        handleLocationUpdate(pos);
         console.log('[Sentinel] Live GPS acquired:', userLiveCoords);
         
         // Update reports to be around the user's actual location
@@ -215,12 +231,137 @@ function requestUserGeolocation() {
         }
       },
       (err) => {
-        console.warn('[Sentinel] Geolocation denied or unavailable, using Edmonton AB default:', err.message);
+        console.warn('[Sentinel] Geolocation denied or unavailable:', err.message);
       },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
     );
+
+    // Continuous Real-Time Background GPS Tracking
+    if (!bgWatchId) {
+      bgWatchId = navigator.geolocation.watchPosition(
+        handleLocationUpdate,
+        (err) => console.warn('[Sentinel] Background watchPosition notice:', err.message),
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+      );
+    }
   }
 }
+
+// ==========================================
+// BACKGROUND KEEP-ALIVE, LOCK-SCREEN SOS & SHAKE DETECTION
+// ==========================================
+let silentAudioKeepAlive = null;
+let screenWakeLockSentinel = null;
+
+function initBackgroundAndLockScreenSOS() {
+  // 1. Silent Audio Keep-Alive (prevents Android OS from freezing the app in background)
+  try {
+    if (!silentAudioKeepAlive) {
+      silentAudioKeepAlive = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+      silentAudioKeepAlive.loop = true;
+    }
+  } catch (e) {
+    console.warn('[Sentinel] Audio keep-alive setup:', e);
+  }
+
+  // 2. Lock Screen MediaSession Controls (Acts as Lock Screen 1-Tap SOS Controller)
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: '🛡️ Sentinel Emergency Armed',
+        artist: 'Lock Screen Emergency Dispatch',
+        album: 'Tap ▶, ⏸ or ⏭ for Instant SOS',
+        artwork: [
+          { src: 'assets/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'assets/icon-512.png', sizes: '512x512', type: 'image/png' }
+        ]
+      });
+
+      const handleEmergencyAction = () => {
+        console.log('[Sentinel] Lock-screen/Headset action triggered: Dispatching SOS');
+        showToast('🚨 Lock Screen Action: Dispatching Emergency SOS...');
+        triggerSos();
+      };
+
+      navigator.mediaSession.setActionHandler('play', handleEmergencyAction);
+      navigator.mediaSession.setActionHandler('pause', handleEmergencyAction);
+      navigator.mediaSession.setActionHandler('nexttrack', handleEmergencyAction);
+      navigator.mediaSession.setActionHandler('previoustrack', handleEmergencyAction);
+    } catch (e) {
+      console.warn('[Sentinel] MediaSession setup:', e);
+    }
+  }
+
+  // 3. Shake to SOS in pocket / locked hand
+  let lastShakeTime = 0;
+  let shakeCount = 0;
+  window.addEventListener('devicemotion', (event) => {
+    // Check if shake to SOS is enabled
+    const saved = localStorage.getItem('sentinel_settings');
+    let shakeEnabled = true;
+    if (saved) {
+      try {
+        const p = JSON.parse(saved);
+        if (p.shakeSos !== undefined) shakeEnabled = p.shakeSos;
+      } catch (e) {}
+    }
+    if (!shakeEnabled) return;
+
+    const acc = event.accelerationIncludingGravity || event.acceleration;
+    if (!acc) return;
+    const magnitude = Math.sqrt((acc.x || 0) ** 2 + (acc.y || 0) ** 2 + (acc.z || 0) ** 2);
+    // Standard gravity is 9.8. A violent shake exceeds 25 m/s²
+    if (magnitude > 25) {
+      const now = Date.now();
+      if (now - lastShakeTime < 900) {
+        shakeCount++;
+        if (shakeCount >= 3) {
+          shakeCount = 0;
+          showToast('🚨 Shake Trigger: Rapid emergency motion detected! Starting SOS...');
+          triggerSos();
+        }
+      } else {
+        shakeCount = 1;
+      }
+      lastShakeTime = now;
+    }
+  });
+
+  // 4. Request Screen Wake Lock when app is active
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      requestScreenWakeLock();
+    }
+  });
+
+  // Start keep-alive audio on first user gesture
+  const startKeepAlive = () => {
+    if (silentAudioKeepAlive && silentAudioKeepAlive.paused) {
+      silentAudioKeepAlive.play().catch(() => {});
+    }
+    requestScreenWakeLock();
+    window.removeEventListener('click', startKeepAlive);
+    window.removeEventListener('touchstart', startKeepAlive);
+  };
+  window.addEventListener('click', startKeepAlive, { once: true });
+  window.addEventListener('touchstart', startKeepAlive, { once: true });
+}
+
+async function requestScreenWakeLock() {
+  if ('wakeLock' in navigator) {
+    try {
+      if (!screenWakeLockSentinel) {
+        screenWakeLockSentinel = await navigator.wakeLock.request('screen');
+        screenWakeLockSentinel.addEventListener('release', () => {
+          screenWakeLockSentinel = null;
+        });
+      }
+    } catch (err) {
+      console.warn('[Sentinel] WakeLock:', err.message);
+    }
+  }
+}
+
 
 const EMERGENCY_REGIONS = {
   IN: {
@@ -933,6 +1074,9 @@ function setupSettingsToggles() {
   const toggleAutoRecord = document.getElementById('toggleAutoRecord');
   const toggleVolumeTrigger = document.getElementById('toggleVolumeTrigger');
   const toggleShareBattery = document.getElementById('toggleShareBattery');
+  const toggleBgLocation = document.getElementById('toggleBgLocation');
+  const toggleLockScreenSos = document.getElementById('toggleLockScreenSos');
+  const toggleShakeSos = document.getElementById('toggleShakeSos');
 
   // Load saved settings if any
   const savedSettings = localStorage.getItem('sentinel_settings');
@@ -942,6 +1086,9 @@ function setupSettingsToggles() {
       if (toggleAutoRecord && parsed.autoRecord !== undefined) toggleAutoRecord.checked = parsed.autoRecord;
       if (toggleVolumeTrigger && parsed.volumeTrigger !== undefined) toggleVolumeTrigger.checked = parsed.volumeTrigger;
       if (toggleShareBattery && parsed.shareBattery !== undefined) toggleShareBattery.checked = parsed.shareBattery;
+      if (toggleBgLocation && parsed.bgLocation !== undefined) toggleBgLocation.checked = parsed.bgLocation;
+      if (toggleLockScreenSos && parsed.lockScreenSos !== undefined) toggleLockScreenSos.checked = parsed.lockScreenSos;
+      if (toggleShakeSos && parsed.shakeSos !== undefined) toggleShakeSos.checked = parsed.shakeSos;
     } catch (e) {
       console.warn('Failed to parse saved settings', e);
     }
@@ -951,7 +1098,10 @@ function setupSettingsToggles() {
     const s = {
       autoRecord: toggleAutoRecord ? toggleAutoRecord.checked : true,
       volumeTrigger: toggleVolumeTrigger ? toggleVolumeTrigger.checked : true,
-      shareBattery: toggleShareBattery ? toggleShareBattery.checked : false
+      shareBattery: toggleShareBattery ? toggleShareBattery.checked : false,
+      bgLocation: toggleBgLocation ? toggleBgLocation.checked : true,
+      lockScreenSos: toggleLockScreenSos ? toggleLockScreenSos.checked : true,
+      shakeSos: toggleShakeSos ? toggleShakeSos.checked : true
     };
     localStorage.setItem('sentinel_settings', JSON.stringify(s));
   }
@@ -976,7 +1126,29 @@ function setupSettingsToggles() {
       showToast(toggleShareBattery.checked ? 'Share battery with circle: Enabled' : 'Share battery with circle: Disabled');
     };
   }
+
+  if (toggleBgLocation) {
+    toggleBgLocation.onchange = () => {
+      saveSettings();
+      showToast(toggleBgLocation.checked ? 'Background GPS tracking: Active' : 'Background GPS tracking: Disabled');
+    };
+  }
+
+  if (toggleLockScreenSos) {
+    toggleLockScreenSos.onchange = () => {
+      saveSettings();
+      showToast(toggleLockScreenSos.checked ? 'Lock Screen SOS Controller: Active' : 'Lock Screen SOS Controller: Disabled');
+    };
+  }
+
+  if (toggleShakeSos) {
+    toggleShakeSos.onchange = () => {
+      saveSettings();
+      showToast(toggleShakeSos.checked ? 'Shake to Trigger SOS: Active' : 'Shake to Trigger SOS: Disabled');
+    };
+  }
 }
+
 
 function setupHardwareButtons() {
   const actionBtn = document.querySelector('.side-btn-action');
